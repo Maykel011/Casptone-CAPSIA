@@ -1,0 +1,644 @@
+@font-face {
+    font-family: 'Akrobat';
+    src: url('Akrobat.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+    /* font-family: 'Akrobat', sans-serif; */
+}
+
+@font-face {
+    font-family: 'SerpentineBold';
+    src: url('Serpentinebold.otf') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+    /* font-family: 'SerpentineBold', sans-serif; */
+}
+
+body {
+    margin: 0;
+    font-family: 'Akrobat', sans-serif;
+}
+
+
+/* HEADER */
+.header {
+    background-color: #f4f4f4;
+    height: 100px;
+    padding: 0 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    align-items: center;
+}
+
+/* MAIN CONTENT */
+.main-content {
+    margin-left: 250px;
+    margin-top: 120px;
+    padding: 20px;
+}
+
+
+.left-side {
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    height: 50px;
+    margin-right: 15px;
+    
+}
+
+.website-name {
+    font-family: 'Akrobat', sans-serif;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+}
+
+.right-side {
+    margin-right: 40px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.icon {
+    height: 30px;
+    margin-left: 20px;
+    cursor: pointer;
+}
+
+.icon:hover {
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 250px;
+    height: calc(100vh - 100px);
+    background: linear-gradient(45deg, #006400, #003300);
+    position: fixed;
+    top: 100px;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: 10px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar ul {
+    font-family: 'Akrobat', sans-serif;
+    list-style: none;
+    padding: 0px;
+    margin: 0;
+}
+
+.sidebar li {
+    margin: 5px 0;
+}
+
+/* Sidebar Links */
+.sidebar a, .dropdown-btn {
+    font-family: 'Akrobat', sans-serif;
+    text-decoration: none;
+    color: rgb(255, 255, 255);
+    font-size: 1.2em;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.3s ease, transform 0.2s ease-in-out;
+}
+
+/* Align icons and text */
+.sidebar a .text, .dropdown-btn .text {
+    flex-grow: 1;
+    text-align: left;
+}
+
+.sidebar-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Hover Effect with Zoom */
+.sidebar a:hover, .dropdown-btn:hover {
+    background-color: #005500;
+    border-radius: 5px;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Smooth Zoom for Sidebar Icons */
+.sidebar a:hover .sidebar-icon, .dropdown-btn:hover .sidebar-icon {
+    transform: scale(1.2);
+}
+
+/* DROPDOWN MENU */
+.dropdown-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+/* Dropdown Arrow Icon */
+.arrow-icon {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+}
+
+/* Fade-in and Fade-out Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+/* Dropdown Content */
+.dropdown-content {
+    display: none;
+    background-color: #005500;
+    padding: 5px;
+    border-radius: 5px;
+    margin-left: 20px;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+/* When active, show dropdown with fade-in */
+.dropdown.active .dropdown-content {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+    opacity: 1;
+}
+
+/* Fade-out effect when hiding dropdown */
+.dropdown-content.hidden {
+    animation: fadeOut 0.3s ease-in-out;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Dropdown Links */
+.dropdown-content a {
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 14px;
+    gap: 8px;
+    transition: background-color 0.3s ease, transform 0.2s ease-in-out;
+}
+
+/* Dropdown Icon Zoom */
+.dropdown-content a:hover i {
+    transform: scale(1.1);
+    transition: transform 0.2s ease-in-out;
+}
+
+.dropdown-content a:hover {
+    background-color: #880000;
+    border-radius: 3px;
+    transform: scale(1.05);
+}
+
+/* Open Dropdown */
+.dropdown.active .dropdown-content {
+    display: block;
+}
+
+/* Rotate arrow when active */
+.dropdown.active .arrow-icon {
+    transform: rotate(180deg);
+}
+
+/* Spacing between dropdown and next item */
+.dropdown-content {
+    margin-top: 5px;
+}
+
+/* Fix request record positioning */
+.request-record {
+    transition: margin-top 0.3s ease;
+    margin-top: 0px;
+}
+
+/* USER DROPDOWN */
+/* USER DROPDOWN */
+.user {
+    position: relative;
+    cursor: pointer;
+}
+
+.user {
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Space between icon and text */
+}
+
+/* User Icon */
+.user .icon {
+    width: 30px;
+    height: 30px;
+}
+
+/* Admin Text */
+.admin-text {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Dropdown Menu */
+.user-dropdown {
+    position: absolute;
+    top: 45px; /* Adjusted to align under the user icon */
+    right: 0;
+    background: #fff;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    overflow: hidden;
+    width: 180px;
+    display: none;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Dropdown Items */
+.user-dropdown a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Icons inside dropdown */
+.user-dropdown a img {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Hover Effect */
+.user-dropdown a:hover {
+    background: #005500;
+    color: white;
+}
+
+/* Zoom-in effect for icons on hover */
+.user-dropdown a:hover img {
+    transform: scale(1.1);
+}
+
+/* Show dropdown */
+.user-dropdown.show {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Divider between items */
+.user-dropdown a:not(:last-child) {
+    border-bottom: 1px solid #eee;
+}
+
+
+/* Dropdown Styling */
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.report-table th, .report-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+}
+
+.download-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.download-icon {
+    cursor: pointer;
+    font-size: 18px;
+    padding: 8px;
+    background: #006400;
+    color: white;
+    border-radius: 5px;
+}
+
+/* MODAL: Position fixed to avoid table clipping */
+.download-dropdown-content {
+    display: none;
+    position: fixed; /* Ensures it appears outside the table */
+    background-color: white;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    overflow: hidden;
+    z-index: 1000;
+    transform: translateX(-20px); /* Moves the dropdown 20px left */
+}
+
+
+.download-dropdown-content a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: black;
+    padding: 10px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.download-dropdown-content a:hover {
+    background-color: #f1f1f1;
+}
+
+
+/* Table styling */
+   .report-table {
+    width: 100%;
+    background-color: #fff;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Table Header */
+.report-table thead th {
+    background-color: #006400;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 8px;
+    text-align: center;
+}
+/* Table Body */
+.report-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+.report-table tbody tr:hover {
+    background: rgba(0, 100, 0, 0.1);
+}
+.report-table th, .report-table td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    text-align: center;
+    font-size: 13px;
+}
+.report-table tbody td {
+    color: #333;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+    gap: 10px;
+}
+
+.pagination button {
+    padding: 8px 12px;
+    border: none;
+    background-color: #006400;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.pagination button:disabled {
+    background-color: gray;
+    
+}
+
+.download-options {
+    text-align: right;
+    margin-bottom: 10px;
+}
+
+.download-options a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, transform 0.2s ease-in-out;
+}
+
+.download-pdf {
+    background-color: #db3838;
+    color: white;
+}
+
+.download-xlsx {
+    background-color: #458348;
+    color: white;
+}
+
+.download-options a:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
+.download-options a img {
+    width: 20px;
+    height: auto;
+}
+
+/*for filter*/
+   /* Filter Container Styles */
+   .filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+    align-items: center;
+    background: #ffffff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e0e0e0;
+}
+
+.search-bar {
+    position: relative;
+    flex: 1 1 250px;
+    min-width: 250px;
+}
+
+.search-bar i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.search-bar input {
+    width: 80%;
+    padding: 10px 15px 10px 38px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease-in-out;
+    background-color: #f8f9fa;
+}
+
+.search-bar input:focus {
+    border-color: #006400;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 100, 0, 0.1);
+    background-color: #fff;
+}
+
+.filter-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex: 2 1 auto;
+    align-items: center;
+}
+
+.filter-controls select {
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    font-size: 14px;
+    min-width: 160px;
+    flex: 1 1 auto;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    color: #495057;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+}
+
+.filter-controls select:focus {
+    border-color: #006400;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 100, 0, 0.1);
+    background-color: #fff;
+}
+
+.filter-reset {
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.filter-reset:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.filter-reset:active {
+    background-color: #dee2e6;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+    .filter-container {
+        gap: 12px;
+    }
+    
+    .filter-controls select {
+        min-width: 140px;
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .search-bar,
+    .filter-controls select {
+        width: 100%;
+        min-width: 100%;
+    }
+    
+    .filter-reset {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .filter-container {
+        padding: 12px;
+    }
+    
+    .search-bar input,
+    .filter-controls select,
+    .filter-reset {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .search-bar i {
+        left: 10px;
+        font-size: 13px;
+    }
+}
