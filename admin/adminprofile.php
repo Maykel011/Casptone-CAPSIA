@@ -340,7 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 </div>
     <script src="../js/adminprofiles.js"></script>
-    <script><script>
+    <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Password toggle functionality with fallback
     const toggleButtons = document.querySelectorAll('.toggle-password');
