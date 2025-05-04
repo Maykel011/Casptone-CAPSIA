@@ -1,19 +1,10 @@
 <?php
+include '../config/db_connection.php';
 session_start();
 
 // Debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-
-$servername = "localhost";
-$username = ""; // Typically your cPanel username + _ + db username
-$password = ""; // The password you set for this database user
-$dbname = "u450075158_ucgs";
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
 
 $error = '';
 $email = '';
@@ -38,10 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Redirect based on role
             if ($user['role'] === 'Administrator') {
-                header('Location: /admin/adminDashboard.php');
+                header('Location: ../admin/adminDashboard.php');
                 exit();
             } else {
-                header('Location: /user/Userdashboard.php');
+                header('Location: ../user/Userdashboard.php');
                 exit();
             }
         } else {
@@ -61,7 +52,7 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Church Community Login</title>
-    <link rel="stylesheet" href="/css/login.css">
+    <link rel="stylesheet" href="../css/login.css">
     <style>
         .password-toggle svg {
             width: 1em;
@@ -78,20 +69,20 @@ $conn->close();
 <body>
     <div class="login-wrapper">
         <div class="hero-section">
-            <img src="/assets/img/BG.jpg" alt="Church Community Illustration" class="hero-image">
+            <img src="../assets/img/BG.jpg" alt="Church Community Illustration" class="hero-image">
             <h2>Welcome to Our Church Community</h2>
             <p>Connect, share, and grow together in faith</p>
         </div>
 
         <div class="login-container">
-            <img src="/assets/img/Logo.png" alt="Church Logo" class="logo">
+            <img src="../assets/img/Logo.png" alt="Church Logo" class="logo">
             <h1 class="form-title">UCGS Member Login</h1>
 
             <?php if ($error): ?>
                 <div class="error-message"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
             <?php endif; ?>
 
-            <form method="POST" action="/login/login.php">
+            <form method="POST" action="../login/login.php">
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" required value="<?= htmlspecialchars($email ?? '', ENT_QUOTES, 'UTF-8') ?>">
@@ -117,7 +108,7 @@ $conn->close();
                 <button type="submit" class="btn">Sign In</button>
                 
                 <div class="forgot-password">
-                    <a href="/login/Forgot_password.php">Forgot Password?</a>
+                    <a href="Forgot_password.php">Forgot Password?</a>
                 </div>
             </form>
         </div>

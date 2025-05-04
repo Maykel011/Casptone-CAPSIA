@@ -1,5 +1,5 @@
 <?php
-include '../config/db_connection.php';
+
 
 // Start session and set headers
 session_start();

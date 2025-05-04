@@ -1,6 +1,6 @@
 <?php
 session_start();
-include '../config/db_connection.php';
+
 
 // Use a secure session configuration
 session_set_cookie_params([
@@ -22,12 +22,6 @@ if (empty($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
 
 include '../config/db_connection.php';
 
-// Verify database connection
-if (!$conn || $conn->connect_error) {
-    error_log("Database connection failed: " . $conn->connect_error);
-    header("Location: ../error.php");
-    exit();
-}
 
 // Sanitize and validate user ID
 $userId = filter_var($_SESSION['user_id'], FILTER_VALIDATE_INT);

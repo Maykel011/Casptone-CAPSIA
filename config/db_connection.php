@@ -1,6 +1,6 @@
 <?php
 $servername = "localhost";
-$username = ""; // Typically your cPanel username + _ + db username
+$username = "root"; // Typically your cPanel username + _ + db username
 $password = ""; // The password you set for this database user
 $dbname = "u450075158_ucgs";
 
