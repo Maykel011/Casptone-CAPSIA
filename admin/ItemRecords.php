@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $itemName = trim($_POST['item_name'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $quantity = intval($_POST['quantity'] ?? 0);
-        $availability = $quantity;
+        $availability = $quantity; // Set availability equal to quantity initially
         $unit = in_array($_POST['unit'] ?? '', ['pcs', 'bx', 'pr', 'bdl']) ? $_POST['unit'] : 'pcs';
         $status = 'Available'; // Default
         if ($availability === 0) {
@@ -120,12 +120,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $itemNo = 'ITEM-' . uniqid();
             
-             // In the INSERT statement, include availability
-    $stmt = $conn->prepare("INSERT INTO items (
-        item_no, item_name, description, quantity, availability, unit, status, 
-        model_no, item_category, item_location, 
-        expiration, created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+             
+    // In the INSERT statement, include availability
+$stmt = $conn->prepare("INSERT INTO items (
+    item_no, item_name, description, quantity, availability, unit, status, 
+    model_no, item_category, item_location, 
+    expiration, created_by
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             $stmt->bind_param(
                 "sssiissssssi", 
@@ -156,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $itemName = trim($_POST['item_name'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $quantity = intval($_POST['quantity'] ?? 0);
-        $availability = intval($_POST['availability'] ?? $quantity); // Keep existing availability if not provided
+        $availability = intval($_POST['availability'] ?? $quantity); // Use submitted availability or default to quantity
         $unit = in_array($_POST['unit'] ?? '', ['pcs', 'bx', 'pr', 'bdl']) ? $_POST['unit'] : 'pcs';
         $status = 'Available'; // Default
         if ($availability === 0) {
@@ -181,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     model_no = ?, item_category = ?, item_location = ?,
     unit = ?, expiration = ?, last_updated = NOW()
     WHERE item_id = ?");
-    
+
             $stmt->bind_param(
                 "ssiissssssi", 
                 $itemName, $description, $quantity, $availability, $status,

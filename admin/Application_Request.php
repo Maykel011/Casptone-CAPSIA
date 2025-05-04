@@ -26,16 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // Check item availability
         $availabilityCheck = $conn->prepare("SELECT availability FROM items WHERE item_id = ?");
-        $availabilityCheck->bind_param("i", $request['item_id']);
-        $availabilityCheck->execute();
-        $availabilityResult = $availabilityCheck->get_result();
-        $item = $availabilityResult->fetch_assoc();
-        $availabilityCheck->close();
+$availabilityCheck->bind_param("i", $request['item_id']);
+$availabilityCheck->execute();
+$availabilityResult = $availabilityCheck->get_result();
+$item = $availabilityResult->fetch_assoc();
+$availabilityCheck->close();
 
-        if ($item['availability'] < $request['quantity']) {
-            echo json_encode(['success' => false, 'error' => 'Not enough available items']);
-            exit();
-        }
+if ($item['availability'] < $request['quantity']) {
+    echo json_encode(['success' => false, 'error' => 'Not enough available items']);
+    exit();
+}
+
 
         // Check if this user already has an approved request for this item
         $duplicateCheck = $conn->prepare("SELECT borrow_id FROM borrow_requests 
@@ -133,15 +134,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 throw new Exception('Failed to update borrow request');
             }
 
-            // If return is accepted, update item availability
-            if ($type === 'accept') {
-                $updateItemStmt = $conn->prepare("UPDATE items SET availability = availability + ? WHERE item_id = ?");
-                $updateItemStmt->bind_param("ii", $request['quantity'], $request['item_id']);
-                if (!$updateItemStmt->execute()) {
-                    throw new Exception('Failed to update item availability');
-                }
-                $updateItemStmt->close();
-            }
+           // If return is accepted, update item availability (not quantity)
+// If return is accepted, update item availability (not quantity)
+if ($type === 'accept') {
+    $updateItemStmt = $conn->prepare("UPDATE items SET availability = availability + ? WHERE item_id = ?");
+    $updateItemStmt->bind_param("ii", $request['quantity'], $request['item_id']);
+    if (!$updateItemStmt->execute()) {
+        throw new Exception('Failed to update item availability');
+    }
+    $updateItemStmt->close();
+}
 
             $conn->commit();
             echo json_encode(['success' => true]);

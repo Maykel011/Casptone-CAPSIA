@@ -196,7 +196,7 @@ document.addEventListener("DOMContentLoaded", function manageItemRecords() {
             document.getElementById('status').value = statusText;
         }
     }
-    
+
     // Utility functions
     function debounce(func, wait) {
         let timeout;
