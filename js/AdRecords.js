@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 });
+
 //////////////////////Item Records Management//////////////////////
 document.addEventListener("DOMContentLoaded", function manageItemRecords() {
     // DOM elements
@@ -71,6 +72,7 @@ document.addEventListener("DOMContentLoaded", function manageItemRecords() {
     const createForm = document.getElementById('create-item-form');
     const quantityInput = document.getElementById('quantity');
     const updateQuantityInput = document.getElementById('update-quantity');
+    const updateAvailabilityInput = document.getElementById('update-availability');
     
     // Variables to track state
     let currentItemId = null;
@@ -142,12 +144,29 @@ document.addEventListener("DOMContentLoaded", function manageItemRecords() {
         // Quantity change listeners for automatic status updates
         if (quantityInput) {
             quantityInput.addEventListener('input', function() {
+                // Set availability equal to quantity when creating new item
+                document.getElementById('availability').value = this.value;
                 updateStatus(this.value);
             });
         }
         
         if (updateQuantityInput) {
             updateQuantityInput.addEventListener('input', function() {
+                // Ensure availability doesn't exceed quantity when updating
+                const quantity = parseInt(this.value) || 0;
+                const availabilityInput = document.getElementById('update-availability');
+                const currentAvailability = parseInt(availabilityInput.value) || 0;
+                
+                if (currentAvailability > quantity) {
+                    availabilityInput.value = quantity;
+                }
+                availabilityInput.max = quantity;
+                updateStatus(availabilityInput.value, true);
+            });
+        }
+        
+        if (updateAvailabilityInput) {
+            updateAvailabilityInput.addEventListener('input', function() {
                 updateStatus(this.value, true);
             });
         }
@@ -212,23 +231,75 @@ document.addEventListener("DOMContentLoaded", function manageItemRecords() {
 
     function updateSelectedItems() {
         selectedItems = [];
-        document.querySelectorAll('.select-item:checked').forEach(checkbox => {
-            selectedItems.push(checkbox.getAttribute('data-item-id'));
-        });
-        deleteSelectedBtn.disabled = selectedItems.length === 0;
-    }
-
-    function toggleSelectAll(checkbox) {
-        const isChecked = checkbox.checked;
         const allCheckboxes = document.querySelectorAll('.select-item');
+        let checkedCount = 0;
         
-        allCheckboxes.forEach(item => {
-            item.checked = isChecked;
+        allCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedItems.push(checkbox.getAttribute('data-item-id'));
+                checkedCount++;
+            }
         });
         
-        updateSelectedItems();
+        deleteSelectedBtn.disabled = selectedItems.length === 0;
+        
+        // Update select-all checkbox state
+        selectAllCheckbox.checked = checkedCount === allCheckboxes.length && allCheckboxes.length > 0;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
     }
 
+ // Replace your current toggleSelectAll and updateSelectAllState functions with these:
+
+function toggleSelectAll(checkbox) {
+    const isChecked = checkbox.checked;
+    const allCheckboxes = document.querySelectorAll('.select-item');
+    
+    allCheckboxes.forEach(item => {
+        item.checked = isChecked;
+    });
+
+    // Update the delete button state
+    updateSelectedItems();
+}
+
+function updateSelectAllState() {
+    const allCheckboxes = document.querySelectorAll('.select-item');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const checkedCount = document.querySelectorAll('.select-item:checked').length;
+    const totalCount = allCheckboxes.length;
+
+    // Update the select all checkbox state
+    if (checkedCount === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedCount === totalCount) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    }
+
+    // Update the delete button state
+    updateSelectedItems();
+}
+
+function updateSelectedItems() {
+    selectedItems = [];
+    const allCheckboxes = document.querySelectorAll('.select-item');
+    const deleteSelectedBtn = document.querySelector('.delete-selected-btn');
+    
+    allCheckboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            selectedItems.push(checkbox.getAttribute('data-item-id'));
+        }
+    });
+    
+    // Enable/disable delete button based on selection
+    deleteSelectedBtn.disabled = selectedItems.length === 0;
+}
+    
+    
     // Delete functions
     function deleteSelected() {
         if (selectedItems.length === 0) {
@@ -283,14 +354,18 @@ document.addEventListener("DOMContentLoaded", function manageItemRecords() {
                 document.getElementById('update-item-name').value = item.item_name;
                 document.getElementById('update-description').value = item.description || '';
                 document.getElementById('update-quantity').value = item.quantity;
+                document.getElementById('update-availability').value = item.availability;
                 document.getElementById('update-model-no').value = item.model_no;
                 document.getElementById('update-unit').value = item.unit;
                 document.getElementById('update-item-category').value = item.item_category;
                 document.getElementById('update-item-location').value = item.item_location || '';
                 document.getElementById('update-expiration').value = item.expiration || '';
                 
-                // Set initial status based on quantity
-                updateStatus(item.quantity, true);
+                // Set max availability to quantity
+                document.getElementById('update-availability').max = item.quantity;
+                
+                // Set initial status based on availability
+                updateStatus(item.availability, true);
                 
                 updateModal.style.display = 'block';
             })
@@ -304,8 +379,8 @@ document.addEventListener("DOMContentLoaded", function manageItemRecords() {
         e.preventDefault();
         
         // Ensure status is updated before submission
-        const quantity = document.getElementById('update-quantity').value;
-        updateStatus(quantity, true);
+        const availability = document.getElementById('update-availability').value;
+        updateStatus(availability, true);
         
         const formData = new FormData(updateForm);
         formData.append('update-item', '1');
@@ -337,14 +412,27 @@ document.addEventListener("DOMContentLoaded", function manageItemRecords() {
         document.getElementById('status-display').value = 'Available';
         document.getElementById('status-display').className = 'available';
         document.getElementById('status').value = 'Available';
+        
+        // Add hidden availability field to form if it doesn't exist
+        if (!document.getElementById('availability')) {
+            const availabilityInput = document.createElement('input');
+            availabilityInput.type = 'hidden';
+            availabilityInput.id = 'availability';
+            availabilityInput.name = 'availability';
+            createForm.appendChild(availabilityInput);
+        }
+        
         createModal.style.display = 'block';
     }
 
     function handleCreateItem(e) {
         e.preventDefault();
         
-        // Ensure status is updated before submission
+        // Set availability equal to quantity when creating new item
         const quantity = document.getElementById('quantity').value;
+        document.getElementById('availability').value = quantity;
+        
+        // Update status based on quantity
         updateStatus(quantity);
         
         const formData = new FormData(createForm);

@@ -219,7 +219,7 @@ $accountRole = $loggedInUser['role'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Dashboard</title>
-    <link rel="stylesheet" href="../css/AdminUsersManagement.css">
+    <link rel="stylesheet" href="../css/AdminUserManagement.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 
@@ -259,10 +259,10 @@ $accountRole = $loggedInUser['role'];
                     <path d="M207.029 381.476L12.686 187.132c-9.373-9.373-9.373-24.569 0-33.941l22.667-22.667c9.357-9.357 24.522-9.375 33.901-.04L224 284.505l154.745-154.021c9.379-9.335 24.544-9.317 33.901.04l22.667 22.667c9.373 9.373 9.373 24.569 0 33.941L240.971 381.476c-9.373 9.372-24.569 9.372-33.942 0z"/></svg>
             </a>
             <ul class="dropdown-content">
-                <li><a href="ItemRequest.php"><i class=""></i> Item Request by User</a></li>
-                <li><a href="ItemBorrowed.php"><i class=""></i> Item Borrow</a></li>
-                <li><a href="ItemReturned.php"><i class=""></i> Item Returned</a></li>
-            </ul>
+                    <li><a href="ItemRequest.php">Item Request by User</a></li>
+                    <li><a href="Application_Request.php"> Application Request</a></li>
+                    <li><a href="ItemReturned.php">Item Returned</a></li>
+                </ul>
         </li>
 
         <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>

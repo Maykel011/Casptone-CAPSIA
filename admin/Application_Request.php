@@ -179,7 +179,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>UCGS Inventory | Item Borrowed</title>
+        <title>UCGS Inventory | Application Request</title>
         <link rel="stylesheet" href="../css/AdminItmBorrowed.css">
     </head>
 
@@ -218,7 +218,7 @@
                     </a>
                     <ul class="dropdown-content">
                         <li><a href="ItemRequest.php"> Item Request by User</a></li>
-                        <li><a href="ItemBorrowed.php"> Item Borrowed</a></li>
+                        <li><a href="Application_Request.php"> Application Request</a></li>
                         <li><a href="ItemReturned.php"> Item Returned</a></li>
                     </ul>
                 </li>
@@ -228,7 +228,7 @@
         </aside>
 
         <div class="main-content">
-            <h2>Item Borrowed</h2>
+            <h2>Application Request</h2>
 
             <div class="filter-container">
     <div class="search-wrapper">
@@ -255,7 +255,7 @@
             <table class="item-table">
                 <thead>
                     <tr>
-                        <th>Username</th>
+                        <th>Name</th>
                         <th>Item Name</th>
                         <th>Item Type</th>
                         <th>Date Needed</th>

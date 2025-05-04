@@ -156,10 +156,10 @@ if ($pendingRequestsResult === false) {
 </svg>
             </a>
             <ul class="dropdown-content">
-                <li><a href="ItemRequest.php"><i class=""></i> Item Request by User</a></li>
-                <li><a href="ItemBorrowed.php"><i class=""></i> Item Borrow</a></li>
-                <li><a href="ItemReturned.php"><i class=""></i> Item Returned</a></li>
-            </ul>
+                    <li><a href="ItemRequest.php">Item Request by User</a></li>
+                    <li><a href="Application_Request.php"> Application Request</a></li>
+                    <li><a href="ItemReturned.php">Item Returned</a></li>
+                </ul>
         </li>
 
         <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>

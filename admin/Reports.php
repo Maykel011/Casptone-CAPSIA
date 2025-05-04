@@ -315,7 +315,7 @@ if (isset($_GET['download'])) {
                 </a>
                 <ul class="dropdown-content">
                     <li><a href="ItemRequest.php">Item Request by User</a></li>
-                    <li><a href="ItemBorrowed.php">Item Borrow</a></li>
+                    <li><a href="Application_Request.php"> Application Request</a></li>
                     <li><a href="ItemReturned.php">Item Returned</a></li>
                 </ul>
             </li>

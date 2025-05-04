@@ -7,6 +7,7 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: ../login/login.php");
     exit();
 }
+
 // Add this near the top of your PHP file, after the session checks but before any output
 if (isset($_GET['item_id']) && is_numeric($_GET['item_id']) && $_SERVER['REQUEST_METHOD'] === 'GET') {
     $itemId = intval($_GET['item_id']);
@@ -42,6 +43,7 @@ if (isset($_GET['item_id']) && is_numeric($_GET['item_id']) && $_SERVER['REQUEST
     echo json_encode(['error' => 'Item not found']);
     exit();
 }
+
 // Function to get logged in user with error handling
 function getLoggedInUser($conn) {
     if (!isset($_SESSION['user_id'])) {
@@ -86,12 +88,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $itemName = trim($_POST['item_name'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $quantity = intval($_POST['quantity'] ?? 0);
+        $availability = $quantity; // Set availability equal to quantity initially
         $unit = in_array($_POST['unit'] ?? '', ['pcs', 'bx', 'pr', 'bdl']) ? $_POST['unit'] : 'pcs';
-        $quantity = intval($_POST['quantity'] ?? 0);
         $status = 'Available'; // Default
-        if ($quantity === 0) {
+        if ($availability === 0) {
             $status = 'Out of Stock';
-        } elseif ($quantity <= 5) {
+        } elseif ($availability <= 5) {
             $status = 'Low Stock';
         }
         
@@ -119,14 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $itemNo = 'ITEM-' . uniqid();
             
             $stmt = $conn->prepare("INSERT INTO items (
-                item_no, item_name, description, quantity, unit, status, 
+                item_no, item_name, description, quantity, availability, unit, status, 
                 model_no, item_category, item_location, 
                 expiration, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             $stmt->bind_param(
-                "sssissssssi", 
-                $itemNo, $itemName, $description, $quantity, $unit, $status,
+                "sssiissssssi", 
+                $itemNo, $itemName, $description, $quantity, $availability, $unit, $status,
                 $modelNo, $itemCategory, $itemLocation,
                 $expiration, $createdBy
             );
@@ -152,14 +154,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $itemName = trim($_POST['item_name'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $quantity = intval($_POST['quantity'] ?? 0);
-        $unit = in_array($_POST['unit'] ?? '', ['pcs', 'bx', 'pr', 'bdl']) ? $_POST['unit'] : 'pcs'; // Add this line
-        $quantity = intval($_POST['quantity'] ?? 0);
-$status = 'Available'; // Default
-if ($quantity === 0) {
-    $status = 'Out of Stock';
-} elseif ($quantity <= 5) {
-    $status = 'Low Stock';
-}
+        $availability = intval($_POST['availability'] ?? $quantity); // Keep existing availability if not provided
+        $unit = in_array($_POST['unit'] ?? '', ['pcs', 'bx', 'pr', 'bdl']) ? $_POST['unit'] : 'pcs';
+        $status = 'Available'; // Default
+        if ($availability === 0) {
+            $status = 'Out of Stock';
+        } elseif ($availability <= 5) {
+            $status = 'Low Stock';
+        }
         $modelNo = trim($_POST['model_no'] ?? '');
         $itemCategory = in_array($_POST['item_category'] ?? '', ['electronics', 'stationary', 'furniture', 'accessories', 'consumables']) 
             ? $_POST['item_category'] 
@@ -172,14 +174,14 @@ if ($quantity === 0) {
         
         try {
             $stmt = $conn->prepare("UPDATE items SET 
-                item_name = ?, description = ?, quantity = ?, status = ?,
+                item_name = ?, description = ?, quantity = ?, availability = ?, status = ?,
                 model_no = ?, item_category = ?, item_location = ?,
                 unit = ?, expiration = ?, last_updated = NOW()
                 WHERE item_id = ?");
             
             $stmt->bind_param(
-                "ssissssssi", 
-                $itemName, $description, $quantity, $status,
+                "ssiissssssi", 
+                $itemName, $description, $quantity, $availability, $status,
                 $modelNo, $itemCategory, $itemLocation,
                 $unit, $expiration, $itemId
             );
@@ -264,7 +266,6 @@ $whereClauses = [];
 $params = [];
 $types = '';
 
-// In the filter section, add these event listeners to the select elements
 if (!empty($statusFilter)) {
     $whereClauses[] = "i.status = ?";
     $params[] = $statusFilter;
@@ -293,18 +294,6 @@ if (!empty($startDate)) {
 if (!empty($endDate)) {
     $whereClauses[] = "i.last_updated <= ?";
     $params[] = $endDate . ' 23:59:59'; // Include the entire end day
-    $types .= 's';
-}
-
-if (!empty($statusFilter)) {
-    $whereClauses[] = "i.status = ?";
-    $params[] = $statusFilter;
-    $types .= 's';
-}
-
-if (!empty($categoryFilter)) {
-    $whereClauses[] = "i.item_category = ?";
-    $params[] = $categoryFilter;
     $types .= 's';
 }
 
@@ -348,9 +337,8 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Item Records</title>
-    <link rel="stylesheet" href="../css/AdminRecord.css">
+    <link rel="stylesheet" href="../css/AdminRecords.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
 </head>
 <body>
 <header class="header">
@@ -373,13 +361,10 @@ try {
     </div>
 </header>
 
- <aside class="sidebar">
+<aside class="sidebar">
     <ul>
         <li><a href="adminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
-
         <li><a href="ItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">Item Records</i></a></li>
-
-        <!-- Request Record with Dropdown -->
         <li class="dropdown">
             <a href="#" class="dropdown-btn">
                 <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
@@ -389,18 +374,17 @@ try {
 </svg>
             </a>
             <ul class="dropdown-content">
-                <li><a href="ItemRequest.php"><i class=""></i> Item Request by User</a></li>
-                <li><a href="ItemBorrowed.php"><i class=""></i> Item Borrow</a></li>
-                <li><a href="ItemReturned.php"><i class=""></i> Item Returned</a></li>
-            </ul>
+                    <li><a href="ItemRequest.php">Item Request by User</a></li>
+                    <li><a href="Application_Request.php"> Application Request</a></li>
+                    <li><a href="ItemReturned.php">Item Returned</a></li>
+                </ul>
         </li>
-
         <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>
         <li><a href="UserManagement.php"><img src="../assets/img/user-management.png" alt="User Management Icon" class="sidebar-icon"> User Management</a></li>
     </ul>
 </aside>
 
-<div class="main-content">
+<<div class="main-content">
 <div class= "table-container">
         <h2>Item Records</h2>
        <div class="filter-container">
@@ -424,12 +408,12 @@ try {
                 
                 <div class="form-group">
                     <select class="filter-select" name="category">
-                        <option value="">All Categories</option>
-                        <option value="electronics" <?php echo $categoryFilter === 'electronics' ? 'selected' : ''; ?>>Electronics</option>
-                        <option value="stationary" <?php echo $categoryFilter === 'stationary' ? 'selected' : ''; ?>>Stationary</option>
-                        <option value="furniture" <?php echo $categoryFilter === 'furniture' ? 'selected' : ''; ?>>Furniture</option>
+                    <option value="">All Categories</option>
                         <option value="accessories" <?php echo $categoryFilter === 'accessories' ? 'selected' : ''; ?>>Accessories</option>
                         <option value="consumables" <?php echo $categoryFilter === 'consumables' ? 'selected' : ''; ?>>Consumables</option>
+                        <option value="electronics" <?php echo $categoryFilter === 'electronics' ? 'selected' : ''; ?>>Electronics</option>
+                        <option value="furniture" <?php echo $categoryFilter === 'furniture' ? 'selected' : ''; ?>>Furniture</option>
+                        <option value="stationary" <?php echo $categoryFilter === 'stationary' ? 'selected' : ''; ?>>Stationary</option>
                     </select>
                 </div>
                 </div>
@@ -455,61 +439,67 @@ try {
     </div>
 </div>
 
-    <form id="item-form">
-        <table class="item-table">
-            <thead>
-                <tr>
-                    <th>Select All <input type="checkbox" class="select-all" onclick="toggleSelectAll(this)"></th>
-                    <th>Item Name</th>
-                    <th>Description</th>
-                    <th>Quantity</th>
-                    <th>Unit</th>
-                    <th>Status</th>
-                    <th>Expiration</th>
-                    <th>Last Updated</th>
-                    <th>Model No</th>
-                    <th>Item Category</th>
-                    <th>Item Location</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="item-table-body">
-                <?php if ($result->num_rows > 0): ?>
-                    <?php while ($row = $result->fetch_assoc()): ?>
-                        <tr data-item-id="<?= htmlspecialchars($row['item_id']) ?>">
-                        <td><input type="checkbox" class="select-item" data-item-id="<?= htmlspecialchars($row['item_id']) ?>"></td>
-                            <td><?= htmlspecialchars($row['item_name']) ?></td>
-                            <td><?= htmlspecialchars($row['description']) ?></td>
-                            <td><?= htmlspecialchars($row['quantity']) ?></td>
-                            <td><?= htmlspecialchars($row['unit']) ?></td>
-                            <td class="status-cell <?= 
-                                ($row['quantity'] === 0 ? 'out-of-stock' : 
-                                ($row['quantity'] <= 5 ? 'low-stock' : '')) 
-                            ?>">
-                                <?= htmlspecialchars(
-                                    $row['quantity'] === 0 ? 'Out of Stock' : 
-                                    ($row['quantity'] <= 5 ? 'Low Stock' : 'Available')
-                                ) ?>
-                            </td>
-                            <td><?= htmlspecialchars($row['expiration'] ?: 'N/A') ?></td>
-                            <td><?= htmlspecialchars($row['last_updated']) ?></td>
-                            <td><?= htmlspecialchars($row['model_no']) ?></td>
-                            <td><?= htmlspecialchars(ucfirst($row['item_category'])) ?></td>
-                            <td><?= htmlspecialchars($row['item_location'] ?: 'N/A') ?></td>
-                            <td>
-                                <button type="button" class="update-btn" onclick="openUpdateModal(<?= $row['item_id'] ?>)">Update</button>
-                                <button type="button" class="delete-btn" onclick="openDeleteModal(<?= $row['item_id'] ?>)">Delete</button>
-                            </td>
-                        </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="12">No records found.</td>
+
+<form id="item-form">
+    <table class="item-table">
+        <thead>
+            <tr>
+                <th>Select All <input type="checkbox" class="select-all" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                <th>Item Name</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Availability</th>
+                <th>Unit</th>
+                <th>Status</th>
+                <th>Expiration</th>
+                <th>Last Updated</th>
+                <th>Model No</th>
+                <th>Item Category</th>
+                <th>Item Location</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="item-table-body">
+            <?php if ($result->num_rows > 0): ?>
+                <?php while ($row = $result->fetch_assoc()): ?>
+                    <tr data-item-id="<?= htmlspecialchars($row['item_id']) ?>">
+                    <td><input type="checkbox" class="select-item" data-item-id="<?= htmlspecialchars($row['item_id']) ?>" onclick="updateSelectAllState()"></td>
+                        <td><?= htmlspecialchars($row['item_name']) ?></td>
+                        <td><?= htmlspecialchars($row['description']) ?></td>
+                        <td><?= htmlspecialchars($row['quantity']) ?></td>
+                        <td><?= htmlspecialchars($row['availability']) ?></td>
+                        <td><?= htmlspecialchars($row['unit']) ?></td>
+                        <td class="status-cell <?= 
+                            ($row['availability'] === 0 ? 'out-of-stock' : 
+                            ($row['availability'] <= 5 ? 'low-stock' : '')) 
+                        ?>">
+                            <?= htmlspecialchars(
+                                $row['availability'] === 0 ? 'Out of Stock' : 
+                                ($row['availability'] <= 5 ? 'Low Stock' : 'Available')
+                            ) ?>
+                        </td>
+                        <td><?= htmlspecialchars($row['expiration'] ?: 'N/A') ?></td>
+                        <td><?= htmlspecialchars($row['last_updated']) ?></td>
+                        <td><?= htmlspecialchars($row['model_no']) ?></td>
+                        <td><?= htmlspecialchars(ucfirst($row['item_category'])) ?></td>
+                        <td><?= htmlspecialchars($row['item_location'] ?: 'N/A') ?></td>
+                        <td>
+                            <button type="button" class="update-btn" onclick="openUpdateModal(<?= $row['item_id'] ?>)">Update</button>
+                            <?php if ($row['item_category'] !== 'consumables'): ?>
+                                <button type="button" class="delete-btn" onclick="openDeleteModal(<?= $row['item_id'] ?>)">Dispose</button>
+                            <?php endif; ?>
+                        </td>
                     </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </form>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="13">No records found.</td>
+                </tr>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</form>
+
     <div class="pagination">
         <button onclick="prevPage()" id="prev-btn" <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>>Previous</button>
         <span id="page-number">Page <?php echo $currentPage; ?> of <?php echo $totalPages; ?></span>
@@ -521,14 +511,13 @@ try {
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal">
     <div class="modal-content">
-        <p>Are you sure you want to delete this item?</p>
+        <p>Are you sure you want to Dispose this item?</p>
         <div class="modal-buttons">
             <button id="confirmDelete" class="delete-btn">Yes</button>
             <button id="cancelDelete" class="cancel-btn">Cancel</button>
         </div>
     </div>
 </div>
-
 
 <!-- Create New Item Modal -->
 <div id="create-Item-modal" class="modal">
@@ -541,9 +530,7 @@ try {
             <input type="text" id="item-name" name="item_name" required>
 
             <label for="description">Description</label>
-            <input id="description"style="width: 100%;height: 20px;border-radius: 10px;" name="description"></input>
-
-            
+            <input id="description" style="width: 100%;height: 20px;border-radius: 10px;" name="description"></input>
 
             <label for="quantity">Quantity</label>
             <input type="number" id="quantity" name="quantity" min="0" required onchange="updateStatus(this.value)">
@@ -562,8 +549,7 @@ try {
 
             <label>Status</label>
             <input type="text" id="status-display" name="status" readonly>
-            <input type="hidden" id="status" name="status" value="Available"> <!-- Hidden field for form submission -->
-
+            <input type="hidden" id="status" name="status" value="Available">
 
             <label for="item-category">Item Category</label>
             <select id="item-category" name="item_category" required>
@@ -599,25 +585,27 @@ try {
             <label for="update-description">Description</label>
             <input id="update-description" style="width: 100%;height: 20px;border-radius: 10px;" name="description"></input>
             
-            <!-- In the update modal form -->
-<label for="update-quantity">Quantity</label>
-<input type="number" id="update-quantity" name="quantity" min="0" required onchange="updateStatus(this.value, true)">
+            <label for="update-quantity">Quantity</label>
+            <input type="number" id="update-quantity" name="quantity" min="0" required>
+            
+            <label for="update-availability">Availability</label>
+            <input type="number" id="update-availability" name="availability" min="0" required onchange="updateStatus(this.value, true)">
             
             <label for="update-model-no">Model No</label>
             <input type="text" id="update-model-no" name="model_no" required>
             
             <label>Status</label>
-<input type="text" id="update-status-display" readonly>
-<input type="hidden" id="update-status" name="status" value="Available"> <!-- Hidden field for form submission -->
-
+            <input type="text" id="update-status-display" readonly>
+            <input type="hidden" id="update-status" name="status" value="Available">
+            
             <label for="update-unit">Unit</label>
-                <select id="update-unit" name="unit" required>
-                    <option value="">-- Select Unit --</option>
-                    <option value="pcs">Pcs</option>
-                    <option value="bx">Bx</option>
-                    <option value="pr">Pr</option>
-                    <option value="bdl">Bdl</option>
-                </select>
+            <select id="update-unit" name="unit" required>
+                <option value="">-- Select Unit --</option>
+                <option value="pcs">Pcs</option>
+                <option value="bx">Bx</option>
+                <option value="pr">Pr</option>
+                <option value="bdl">Bdl</option>
+            </select>
             
             <label for="update-item-category">Item Category</label>
             <select id="update-item-category" name="item_category" required>
@@ -641,14 +629,13 @@ try {
     </div>
 </div>
 
-
 <!-- Success Message Container -->
 <div id="successMessage" class="success-message" style="display: none;">
     <i class="fas fa-check-circle"></i>
     <span id="successText"></span>
 </div>
 
-<script src="../js/AdminRecords.js"></script>
+<script src="../js/AdRecords.js"></script>
 
 </body>
 </html>
