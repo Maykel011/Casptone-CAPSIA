@@ -248,7 +248,7 @@ document.addEventListener("DOMContentLoaded", function () {
     
     async function refreshTable() {
         try {
-            const response = await fetch("ItemBorrowed.php", {
+            const response = await fetch("Application_Request.php", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
@@ -358,7 +358,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const requestId = this.getAttribute("data-request-id");
         
         if (confirm("Are you sure you want to approve this request?")) {
-            fetch("ItemBorrowed.php", {
+            fetch("Application_Request.php", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
@@ -403,7 +403,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
         
-        fetch("ItemBorrowed.php", {
+        fetch("Application_Request.php", {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
@@ -432,7 +432,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const requestId = this.getAttribute("data-request-id");
         
         if (confirm("Are you sure this item has been returned?")) {
-            fetch("ItemBorrowed.php", {
+            fetch("Application_Request.php", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
