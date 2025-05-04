@@ -2,6 +2,148 @@
 include '../config/db_connection.php';
 session_start();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $itemCategory = htmlspecialchars($_POST['item_category'] ?? '');
+    $itemId = intval($_POST['item_id'] ?? 0);
+    $quantity = intval($_POST['quantity'] ?? 0);
+    $dateNeeded = $_POST['date_needed'] ?? '';
+    $returnDate = $_POST['return_date'] ?? '';
+    $purpose = htmlspecialchars($_POST['purpose'] ?? '');
+    $notes = htmlspecialchars($_POST['notes'] ?? '');
+    $userId = $_SESSION['user_id'] ?? null;
+    $fromCart = isset($_POST['from_cart']);
+
+    // Validate required fields
+    if (!$itemCategory || !$itemId || !$quantity || !$dateNeeded || !$returnDate || !$purpose || !$userId) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'All required fields must be filled out.']);
+        exit();
+    }
+
+    // Validate quantity
+    if ($quantity <= 0) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Quantity must be a positive number.']);
+        exit();
+    }
+
+    // Validate dates
+    if (strtotime($dateNeeded) === false || strtotime($returnDate) === false) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Invalid date format.']);
+        exit();
+    }
+    if (strtotime($dateNeeded) > strtotime($returnDate)) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Return date must be after the date needed.']);
+        exit();
+    }
+
+    // Fetch item details
+    $itemCheckStmt = $conn->prepare("SELECT item_name, quantity FROM items WHERE item_id = ? AND item_category = ?");
+    if (!$itemCheckStmt) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Database error: ' . $conn->error]);
+        exit();
+    }
+    $itemCheckStmt->bind_param("is", $itemId, $itemCategory);
+    $itemCheckStmt->execute();
+    $itemResult = $itemCheckStmt->get_result();
+    $itemData = $itemResult->fetch_assoc();
+    $itemCheckStmt->close();
+
+    if (!$itemData) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Item does not exist in the selected category.']);
+        exit();
+    }
+
+    $itemName = htmlspecialchars($itemData['item_name']);
+    $availableQty = $itemData['quantity'];
+
+    // Check reserved quantity
+    $reservedCheck = $conn->prepare("SELECT SUM(quantity) AS reserved FROM borrow_requests 
+                                   WHERE item_id = ? AND status = 'Approved'");
+    $reservedCheck->bind_param("i", $itemId);
+    $reservedCheck->execute();
+    $reservedResult = $reservedCheck->get_result();
+    $reservedData = $reservedResult->fetch_assoc();
+    $reservedCheck->close();
+
+    $actuallyAvailable = $availableQty - ($reservedData['reserved'] ?? 0);
+
+    if ($actuallyAvailable < $quantity) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => "Only $actuallyAvailable of this item are currently available."]);
+        exit();
+    }
+
+    // Check if user already has active request for this item
+    $checkQuery = "SELECT COUNT(*) AS count FROM borrow_requests 
+                  WHERE user_id = ? AND item_id = ? AND status IN ('Pending', 'Approved')";
+    $checkStmt = $conn->prepare($checkQuery);
+    if ($checkStmt) {
+        $checkStmt->bind_param("ii", $userId, $itemId);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        $row = $checkResult->fetch_assoc();
+        $checkStmt->close();
+
+        if ($row['count'] > 0) {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'You already have an active request for this item. Please wait for your current request to be processed or returned.']);
+            exit();
+        }
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Database error: Unable to prepare statement. ' . htmlspecialchars($conn->error)]);
+        exit();
+    }
+
+    // Insert borrow request
+    $stmt = $conn->prepare("INSERT INTO borrow_requests 
+                          (user_id, item_id, item_name, quantity, date_needed, return_date, purpose, notes, status) 
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')");
+
+    if (!$stmt) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Database error: ' . $conn->error]);
+        exit();
+    }
+
+    $stmt->bind_param("iisissss", $userId, $itemId, $itemName, $quantity, $dateNeeded, $returnDate, $purpose, $notes);
+
+    if ($stmt->execute()) {
+        // Only update quantities if not from cart
+        if (!$fromCart) {
+            $updateStmt = $conn->prepare("UPDATE items SET quantity = quantity - ? WHERE item_id = ?");
+            if ($updateStmt) {
+                $updateStmt->bind_param("ii", $quantity, $itemId);
+                $updateStmt->execute();
+                $updateStmt->close();
+            }
+        }
+
+        // Save transaction history
+        $transactionQuery = "INSERT INTO transactions 
+                           (user_id, action, details, item_id, item_name, quantity, status) 
+                           VALUES (?, 'Borrow', ?, ?, ?, ?, 'Pending')";
+        $transactionStmt = $conn->prepare($transactionQuery);
+        $details = "Borrowed $quantity of item '$itemName' in $itemCategory category" . ($fromCart ? " (from cart)" : "");
+        $transactionStmt->bind_param("isiss", $userId, $details, $itemId, $itemName, $quantity);
+        $transactionStmt->execute();
+        $transactionStmt->close();
+
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Failed to submit borrow request.']);
+    }
+    $stmt->close();
+    exit();
+}
+
 function getCurrentUser($conn) {
     if (!isset($_SESSION['user_id'])) {
         header("Location: ../login/login.php");
@@ -42,169 +184,6 @@ $accountName = htmlspecialchars($currentUser['username']);
 $accountEmail = htmlspecialchars($currentUser['email'] ?? '');
 $categories = getItemCategories($conn);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $itemCategory = htmlspecialchars($_POST['item_category'] ?? '');
-    $itemId = intval($_POST['item_id'] ?? 0);
-    $quantity = intval($_POST['quantity'] ?? 0);
-    $dateNeeded = $_POST['date_needed'] ?? '';
-    $returnDate = $_POST['return_date'] ?? '';
-    $purpose = htmlspecialchars($_POST['purpose'] ?? '');
-    $notes = htmlspecialchars($_POST['notes'] ?? '');
-    $userId = $_SESSION['user_id'] ?? null;
-
-    // Validate required fields
-    if (!$itemCategory || !$itemId || !$quantity || !$dateNeeded || !$returnDate || !$purpose || !$userId) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'All required fields must be filled out.']);
-        exit();
-    }
-
-    // Validate quantity
-    if ($quantity <= 0) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Quantity must be a positive number.']);
-        exit();
-    }
-
-    // Validate dates
-    if (strtotime($dateNeeded) === false || strtotime($returnDate) === false) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Invalid date format.']);
-        exit();
-    }
-    if (strtotime($dateNeeded) > strtotime($returnDate)) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Return date must be after the date needed.']);
-        exit();
-    }
-
-    // Fetch item details
-    $itemCheckStmt = $conn->prepare("SELECT item_name, quantity FROM items WHERE item_id = ? AND item_category = ? AND quantity > 0");
-    if (!$itemCheckStmt) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Database error: ' . $conn->error]);
-        exit();
-    }
-    $itemCheckStmt->bind_param("is", $itemId, $itemCategory);
-    $itemCheckStmt->execute();
-    $itemResult = $itemCheckStmt->get_result();
-    $itemData = $itemResult->fetch_assoc();
-    $itemCheckStmt->close();
-
-    if (!$itemData) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Item does not exist in the selected category or is out of stock.']);
-        exit();
-    }
-
-    if ($itemData['quantity'] < $quantity) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Insufficient item quantity available. Only ' . $itemData['quantity'] . ' remaining.']);
-        exit();
-    }
-
-    $itemName = htmlspecialchars($itemData['item_name']);
-
-    // After getting item details
-$availableQty = $itemData['quantity'];
-
-// Check if any approved requests exist for this item (not yet returned)
-$reservedCheck = $conn->prepare("SELECT SUM(quantity) AS reserved FROM borrow_requests 
-                               WHERE item_id = ? AND status = 'Approved'");
-$reservedCheck->bind_param("i", $itemId);
-$reservedCheck->execute();
-$reservedResult = $reservedCheck->get_result();
-$reservedData = $reservedResult->fetch_assoc();
-$reservedCheck->close();
-
-$actuallyAvailable = $availableQty - ($reservedData['reserved'] ?? 0);
-
-if ($actuallyAvailable < $quantity) {
-    header('Content-Type: application/json');
-    echo json_encode(['error' => "Only $actuallyAvailable of this item are currently available."]);
-    exit();
-}
-
-// Check if the user already has an active request for this item
-$checkQuery = "SELECT COUNT(*) AS count FROM borrow_requests 
-WHERE user_id = ? AND item_id = ? AND status IN ('Pending', 'Approved')";
-$checkStmt = $conn->prepare($checkQuery);
-if ($checkStmt) {
-    $checkStmt->bind_param("ii", $userId, $itemId);
-    $checkStmt->execute();
-    $checkResult = $checkStmt->get_result();
-    $row = $checkResult->fetch_assoc();
-    $checkStmt->close();
-
-    if ($row['count'] > 0) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'You already have an active request for this item. Please wait for your current request to be processed or returned.']);
-        exit();
-    }
-} else {
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Database error: Unable to prepare statement. ' . htmlspecialchars($conn->error)]);
-    exit();
-}
-
-    // Insert borrow request
-    $stmt = $conn->prepare("INSERT INTO borrow_requests (user_id, item_id, item_name, quantity, date_needed, return_date, purpose, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')");
-
-    if (!$stmt) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Database error: ' . $conn->error]);
-        exit();
-    }
-    $stmt->bind_param("iisissss", $userId, $itemId, $itemName, $quantity, $dateNeeded, $returnDate, $purpose, $notes);
-
-    $success = $stmt->execute();
-
-    if ($success) {
-        // Update the item quantity in the database
-        $updateStmt = $conn->prepare("UPDATE items SET quantity = quantity - ? WHERE item_id = ?");
-        if (!$updateStmt) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Database error: ' . $conn->error]);
-            exit();
-        }
-        $updateStmt->bind_param("ii", $quantity, $itemId);
-        $updateSuccess = $updateStmt->execute();
-        $updateStmt->close();
-
-        if (!$updateSuccess) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Failed to update item quantity: ' . $conn->error]);
-            exit();
-        }
-
-        // Save transaction history
-        $transactionQuery = "INSERT INTO transactions (user_id, action, details, item_id, item_name, quantity, status) VALUES (?, 'Borrow', ?, ?, ?, ?, 'Pending')";
-        $transactionStmt = $conn->prepare($transactionQuery);
-        if (!$transactionStmt) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Database error: ' . $conn->error]);
-            exit();
-        }
-        $details = "Borrowed $quantity of item '$itemName' in $itemCategory category.";
-        $transactionStmt->bind_param("isiss", $userId, $details, $itemId, $itemName, $quantity);
-        if (!$transactionStmt->execute()) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Failed to save transaction history: ' . $transactionStmt->error]);
-            exit();
-        }
-        $transactionStmt->close();
-
-        // Return success response
-        header('Content-Type: application/json');
-        echo json_encode(['success' => true]);
-        exit();
-    } else {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Failed to submit borrow request.']);
-        exit();
-    }
-}
-
 // Fetch items based on category for dynamic population
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
     $category = htmlspecialchars($_GET['item_category']);
@@ -215,10 +194,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
         exit();
     }
 
-    // Use GROUP BY to ensure unique items
     $stmt = $conn->prepare("SELECT item_id, item_name FROM items 
                            WHERE item_category = ? AND quantity > 0
-                           GROUP BY item_id, item_name"); // Ensure unique items
+                           GROUP BY item_id, item_name");
     if (!$stmt) {
         header('Content-Type: application/json', true, 500);
         echo json_encode(['error' => 'Database error: ' . $conn->error]);
@@ -248,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="UCGS Inventory Management System - New Item Request">
     <title>UCGS Inventory | Borrow Request</title>
-    <link rel="stylesheet" href="../css/UserItmBorrowed.css">
+    <link rel="stylesheet" href="../css/UserItemBorrowed.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
           integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" 
           crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -409,11 +387,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
                 </div>
 
                 <div class="form-buttons">
-                    <button type="submit" class="submit-btn">Submit Request</button>
+                    <button type="button" id="submit-btn" class="submit-btn">Submit Request</button>
+                    <button type="button" id="add-to-cart-btn" class="cart-btn">Add to Cart</button>
                     <button type="reset" class="reset-btn">Clear Form</button>
                 </div>
             </form>
         </div>
+
+        <div class="borrow-cart-container">
+    <h2>Add to Cart</h2>
+    <div class="cart-table-wrapper">
+        <table class="borrow-cart-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th>Quantity</th>
+                    <th>Date Needed</th>
+                    <th>Return Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="cart-items">
+                <!-- Cart items will be populated here -->
+            </tbody>
+        </table>
+    </div>
+    <div class="cart-actions">
+        <button id="submit-all-btn" class="submit-all-btn">Submit All Requests</button>
+        <button id="clear-cart-btn" class="clear-cart-btn">Clear Cart</button>
+    </div>
+</div>
     </main>
 
     <!-- Modal Notification -->
@@ -424,6 +428,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
         </div>
     </div>
 
-    <script src="../js/userItemborroweds.js"></script>
+    <!-- Confirmation Modal -->
+<div id="confirmationModal" class="custom-modal">
+    <div class="custom-modal-content">
+        <button class="custom-modal-close">&times;</button>
+        <p id="confirmationMessage"></p>
+        <div class="confirmation-buttons">
+            <button id="confirmYes" class="confirm-btn">Yes</button>
+            <button id="confirmNo" class="confirm-btn cancel-btn">No</button>
+        </div>
+    </div>
+</div>
+
+    <script src="../js/userItemsborroweds.js"></script>
 </body>
 </html>
