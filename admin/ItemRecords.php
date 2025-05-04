@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $itemName = trim($_POST['item_name'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $quantity = intval($_POST['quantity'] ?? 0);
-        $availability = $quantity; // Set availability equal to quantity initially
+        $availability = $quantity;
         $unit = in_array($_POST['unit'] ?? '', ['pcs', 'bx', 'pr', 'bdl']) ? $_POST['unit'] : 'pcs';
         $status = 'Available'; // Default
         if ($availability === 0) {
@@ -120,11 +120,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $itemNo = 'ITEM-' . uniqid();
             
-            $stmt = $conn->prepare("INSERT INTO items (
-                item_no, item_name, description, quantity, availability, unit, status, 
-                model_no, item_category, item_location, 
-                expiration, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+             // In the INSERT statement, include availability
+    $stmt = $conn->prepare("INSERT INTO items (
+        item_no, item_name, description, quantity, availability, unit, status, 
+        model_no, item_category, item_location, 
+        expiration, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             $stmt->bind_param(
                 "sssiissssssi", 
@@ -132,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $modelNo, $itemCategory, $itemLocation,
                 $expiration, $createdBy
             );
+        
     
             if ($stmt->execute()) {
                 echo json_encode(['success' => true, 'message' => 'Item created successfully.', 'item_id' => $stmt->insert_id]);
@@ -173,19 +175,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         error_log("Update data received: " . print_r($_POST, true));
         
         try {
-            $stmt = $conn->prepare("UPDATE items SET 
-                item_name = ?, description = ?, quantity = ?, availability = ?, status = ?,
-                model_no = ?, item_category = ?, item_location = ?,
-                unit = ?, expiration = ?, last_updated = NOW()
-                WHERE item_id = ?");
-            
+                // In the UPDATE statement, include availability
+    $stmt = $conn->prepare("UPDATE items SET 
+    item_name = ?, description = ?, quantity = ?, availability = ?, status = ?,
+    model_no = ?, item_category = ?, item_location = ?,
+    unit = ?, expiration = ?, last_updated = NOW()
+    WHERE item_id = ?");
+    
             $stmt->bind_param(
                 "ssiissssssi", 
                 $itemName, $description, $quantity, $availability, $status,
                 $modelNo, $itemCategory, $itemLocation,
                 $unit, $expiration, $itemId
             );
-    
             if ($stmt->execute()) {
                 echo json_encode(['success' => true, 'message' => 'Item updated successfully.']);
             } else {
