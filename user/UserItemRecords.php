@@ -119,11 +119,12 @@ $offset = ($page - 1) * $itemsPerPage;
 $itemsQuery = "SELECT 
     item_name, 
     description, 
-    quantity, 
+    quantity,
+    availability,
     unit, 
     CASE 
-        WHEN quantity = 0 THEN 'Out of Stock'
-        WHEN quantity <= 5 THEN 'Low Stock'
+        WHEN availability = 0 THEN 'Out of Stock'
+        WHEN availability <= 5 THEN 'Low Stock'
         ELSE 'Available'
     END as status,
     created_at, 
@@ -132,6 +133,7 @@ $itemsQuery = "SELECT
     item_category, 
     item_location 
     $baseQuery
+    ORDER BY last_updated DESC
     LIMIT ?, ?";
 $stmt = $conn->prepare($itemsQuery);
 if (!$stmt) {
@@ -262,6 +264,7 @@ $stmt->close();
                         <th>Item Name</th>
                         <th>Description</th>
                         <th>Quantity</th>
+                        <th>Availability</th>
                         <th>Unit</th>
                         <th>Status</th>
                         <th>Model No</th>
@@ -276,6 +279,7 @@ $stmt->close();
                                 <td><?= htmlspecialchars($row['item_name']); ?></td>
                                 <td><?= htmlspecialchars($row['description']); ?></td>
                                 <td><?= htmlspecialchars($row['quantity']); ?></td>
+                                <td><?= htmlspecialchars($row['availability']); ?></td>
                                 <td><?= htmlspecialchars($row['unit']); ?></td>
                                 <td>
                                     <span class="status-badge status-<?php 
@@ -308,6 +312,6 @@ $stmt->close();
             <?php endif; ?>
     </div>  
 
-<script src="../js/userItmrecord.js"></script>
+<script src="../js/UserItemsRecords.js"></script>
 </body>
 </html>
