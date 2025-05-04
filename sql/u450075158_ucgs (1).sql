@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1:3306
--- Generation Time: May 03, 2025 at 03:00 PM
--- Server version: 10.11.10-MariaDB-log
--- PHP Version: 7.2.34
+-- Host: 127.0.0.1
+-- Generation Time: May 04, 2025 at 05:45 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -78,19 +78,6 @@ CREATE TABLE `borrow_requests` (
   `return_reason` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `borrow_requests`
---
-
-INSERT INTO `borrow_requests` (`borrow_id`, `user_id`, `item_id`, `quantity`, `date_needed`, `return_date`, `purpose`, `notes`, `status`, `request_date`, `transaction_id`, `item_name`, `processed_at`, `rejection_reason`, `return_status`, `return_reason`) VALUES
-(1, 19, 19, 8, '2025-04-13', '2025-04-22', 'Holy Week event', '', 'Approved', '2025-04-12 23:06:54', NULL, 'Candles', '2025-04-13 01:28:50', NULL, NULL, NULL),
-(2, 19, 12, 2, '2025-04-13', '2025-04-16', 'Replacement of the damaged ', '', 'Approved', '2025-04-13 12:15:53', NULL, 'Mini Trash Bin', '2025-04-13 12:23:06', NULL, NULL, NULL),
-(3, 19, 17, 5, '2025-04-16', '2025-04-29', 'Event', '', 'Rejected', '2025-04-13 12:19:29', NULL, 'Disposable cups', '2025-04-13 12:25:58', '...', NULL, NULL),
-(4, 19, 7, 2, '2025-04-16', '2025-04-20', 'Safety First', '', 'Rejected', '2025-04-13 12:22:48', NULL, 'First Aid Kit', '2025-04-13 13:08:33', 'No duplication', NULL, NULL),
-(5, 19, 1, 50, '2025-04-13', '2025-04-19', 'Bible Study', '', 'Approved', '2025-04-13 13:01:27', NULL, 'ESV Bible', '2025-04-13 13:08:18', NULL, NULL, NULL),
-(6, 1, 4, 5, '2025-04-13', '2025-04-16', 'Church Midweek Services', 'N/A', 'Approved', '2025-04-13 13:18:00', NULL, 'Projector', '2025-04-13 13:29:22', NULL, NULL, NULL),
-(7, 19, 4, 5, '2025-04-13', '2025-04-16', 'Church Services', 'N/A', 'Approved', '2025-04-13 13:33:33', NULL, 'Projector', '2025-04-13 13:33:47', NULL, NULL, NULL);
-
 -- --------------------------------------------------------
 
 --
@@ -104,6 +91,7 @@ CREATE TABLE `items` (
   `item_name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `quantity` int(11) NOT NULL,
+  `availability` int(11) NOT NULL DEFAULT 0,
   `unit` varchar(10) NOT NULL DEFAULT 'pcs',
   `status` enum('Available','Out of Stock','Low Stock') NOT NULL,
   `model_no` varchar(50) DEFAULT NULL,
@@ -120,34 +108,34 @@ CREATE TABLE `items` (
 -- Dumping data for table `items`
 --
 
-INSERT INTO `items` (`item_id`, `created_by`, `item_no`, `item_name`, `description`, `quantity`, `unit`, `status`, `model_no`, `item_category`, `item_location`, `expiration`, `brand`, `deleted_at`, `last_updated`, `created_at`) VALUES
-(1, 1, 'ITEM-67fa9921bc165', 'ESV Bible', 'ESV Bible', 200, 'pcs', 'Available', 'ITEM-257280217', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-04-13 13:05:54', '2025-04-12 16:47:29'),
-(2, 1, 'ITEM-67fa995d32e2e', 'KJV Bible', 'KJV Bible', 100, 'pcs', 'Available', 'ITEM-377690816', 'stationary', 'Storage Room', NULL, NULL, NULL, '2025-04-12 16:48:29', '2025-04-12 16:48:29'),
-(3, 1, 'ITEM-67fa99aa78f13', 'NIV Bible', 'NIV Bible', 150, 'pcs', 'Available', 'ITEM-302507392', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-04-12 16:49:46', '2025-04-12 16:49:46'),
-(4, 1, 'ITEM-67fa9a0349d71', 'Projector', 'Projector', 5, 'pcs', 'Available', 'ITEM-751601536', 'electronics', 'Storage Room', NULL, NULL, NULL, '2025-04-13 13:33:33', '2025-04-12 16:51:15'),
-(5, 1, 'ITEM-67fa9ae1c1337', 'Brown Envelope', 'Brown Envelope', 1000, 'pcs', 'Available', 'ITEM-102478715', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-04-12 16:54:57', '2025-04-12 16:54:57'),
-(6, 1, 'ITEM-67fa9b10312a0', 'Cardboard', 'Cardboard', 124, 'pcs', 'Available', 'ITEM-972015773', 'consumables', 'Storage Room', NULL, NULL, NULL, '2025-04-12 16:55:44', '2025-04-12 16:55:44'),
-(7, 1, 'ITEM-67fa9b60744bc', 'First Aid Kit', 'First Aid Kit', 28, 'pcs', 'Available', 'ITEM-477741107', 'consumables', 'Admin Office', NULL, NULL, NULL, '2025-04-13 12:22:48', '2025-04-12 16:57:04'),
-(8, 1, 'ITEM-67fa9c5f18095', 'A4 Bond Paper', 'A4 Bond Paper', 10, 'bdl', 'Available', 'ITEM-324759139', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-04-12 17:01:19', '2025-04-12 17:01:19'),
-(9, 1, 'ITEM-67fa9c8f1f5be', 'Long Bond Paper', 'Long Bond Paper', 11, 'bdl', 'Available', 'ITEM-932141824', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-04-12 17:02:07', '2025-04-12 17:02:07'),
-(10, 1, 'ITEM-67fa9d6f220b6', 'Office Chair', 'Office Chair', 10, 'pcs', 'Available', 'ITEM-166943995', 'furniture', 'Admin Office', NULL, NULL, NULL, '2025-04-12 17:05:51', '2025-04-12 17:05:51'),
-(11, 1, 'ITEM-67fa9e6da1407', 'Laptop', 'Galaxy Book5 Pro 360', 6, 'pcs', 'Available', 'ITEM-476850205', 'electronics', 'Admin Office', NULL, NULL, NULL, '2025-04-12 17:10:05', '2025-04-12 17:10:05'),
-(12, 1, 'ITEM-67fa9f0361d7a', 'Mini Trash Bin', 'Mini Trash Bin', 4, 'pcs', 'Available', 'ITEM-381597685', 'accessories', 'Admin Office', NULL, NULL, NULL, '2025-04-13 12:15:53', '2025-04-12 17:12:35'),
-(13, 1, 'ITEM-67faa018c3a67', 'Plastic Table', 'Plastic Table', 12, 'pcs', 'Available', 'ITEM-972015773', 'furniture', 'Storage Room', NULL, NULL, NULL, '2025-04-12 17:17:12', '2025-04-12 17:17:12'),
-(14, 1, 'ITEM-67faa0b58d5b7', 'Crayons', 'Crayola', 10, 'bx', 'Available', 'ITEM-106819365', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-04-12 17:19:49', '2025-04-12 17:19:49'),
-(15, 1, 'ITEM-67faa0fb20d1f', 'White Envelope', 'White Envelope', 500, 'pcs', 'Available', 'ITEM-644439902', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-04-12 17:20:59', '2025-04-12 17:20:59'),
-(16, 1, 'ITEM-67faa154f0150', 'Broom', 'Broom', 10, 'pcs', 'Available', 'ITEM-519293501', 'stationary', 'Janitorial Office', NULL, NULL, NULL, '2025-04-12 17:22:28', '2025-04-12 17:22:28'),
-(17, 1, 'ITEM-67faa2ea64404', 'Disposable cups', 'Disposable cups', 5, 'bx', 'Available', 'ITEM-381597685', 'consumables', 'Admin Office', NULL, NULL, NULL, '2025-04-13 12:19:29', '2025-04-12 17:29:14'),
-(18, 1, 'ITEM-67faa3ce3c8e1', 'Communion Wine', 'Communion Wine', 14, 'pcs', 'Available', 'ITEM-922704471', 'consumables', 'Admin Office', NULL, NULL, NULL, '2025-04-12 17:33:02', '2025-04-12 17:33:02'),
-(19, 1, 'ITEM-67faa3f12194b', 'Candles', 'White Candles', 4, 'bdl', 'Low Stock', 'ITEM-328217189', 'consumables', 'Admin Office', NULL, NULL, NULL, '2025-04-13 11:42:08', '2025-04-12 17:33:37'),
-(20, 1, 'ITEM-67faa548bf415', 'Paper Plates', 'Paper Plates', 234, 'pcs', 'Available', 'ITEM-166943995', 'consumables', 'Storage Room', NULL, NULL, NULL, '2025-04-12 17:39:20', '2025-04-12 17:39:20'),
-(21, 1, 'ITEM-67faa59c68191', 'Microphone', 'Microphone', 18, 'pcs', 'Available', 'ITEM-163744751', 'electronics', 'Sanctuary', NULL, NULL, NULL, '2025-04-12 17:40:44', '2025-04-12 17:40:44'),
-(22, 1, 'ITEM-67faa6160c955', 'Music Stand', 'Black Music Stand', 8, 'pcs', 'Available', 'ITEM-552270458', 'furniture', 'Sanctuary', NULL, NULL, NULL, '2025-04-12 17:42:46', '2025-04-12 17:42:46'),
-(23, 1, 'ITEM-67faa677a23e4', 'Camera', 'Canon EOS 3000D with 18-55 III Non-IS Black', 6, 'pcs', 'Available', 'ITEM-328217189', 'electronics', 'Sanctuary', NULL, NULL, NULL, '2025-04-12 17:44:23', '2025-04-12 17:44:23'),
-(24, 1, 'ITEM-67faa6d92e780', 'Flatscreen TV', 'Daewoo Electronic Appliances LED Google TV 32 Inches', 6, 'pcs', 'Available', 'ITEM-106819365', 'electronics', 'Sanctuary', NULL, NULL, NULL, '2025-04-12 17:51:49', '2025-04-12 17:46:01'),
-(25, 1, 'ITEM-67faa7d447e99', 'Erasers', 'Erasers', 35, 'pcs', 'Available', 'ITEM-106819365', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-04-12 17:50:12', '2025-04-12 17:50:12'),
-(26, 1, 'ITEM-67fbaa271459f', 'Wooden Table', 'Wooden Table', 8, 'pcs', 'Available', 'ITEM-654719365', 'furniture', 'Sanctuary', NULL, NULL, NULL, '2025-04-13 12:12:23', '2025-04-13 12:12:23'),
-(27, NULL, 'ITEM-67FBB707C3EAB', 'Ceiling Fan', NULL, 3, 'pcs', 'Available', NULL, 'electronics', NULL, NULL, NULL, NULL, '2025-04-13 13:07:19', '2025-04-13 13:07:19');
+INSERT INTO `items` (`item_id`, `created_by`, `item_no`, `item_name`, `description`, `quantity`, `availability`, `unit`, `status`, `model_no`, `item_category`, `item_location`, `expiration`, `brand`, `deleted_at`, `last_updated`, `created_at`) VALUES
+(1, 1, 'ITEM-67fa9921bc165', 'ESV Bible', 'ESV Bible', 200, 200, 'pcs', 'Available', 'ITEM-257280217', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:56', '2025-04-12 16:47:29'),
+(2, 1, 'ITEM-67fa995d32e2e', 'KJV Bible', 'KJV Bible', 100, 100, 'pcs', 'Available', 'ITEM-377690816', 'stationary', 'Storage Room', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 16:48:29'),
+(3, 1, 'ITEM-67fa99aa78f13', 'NIV Bible', 'NIV Bible', 150, 150, 'pcs', 'Available', 'ITEM-302507392', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 16:49:46'),
+(4, 1, 'ITEM-67fa9a0349d71', 'Projector', 'Projector', 5, 5, 'pcs', 'Available', 'ITEM-751601536', 'electronics', 'Storage Room', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 16:51:15'),
+(5, 1, 'ITEM-67fa9ae1c1337', 'Brown Envelope', 'Brown Envelope', 1000, 1000, 'pcs', 'Available', 'ITEM-102478715', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 16:54:57'),
+(6, 1, 'ITEM-67fa9b10312a0', 'Cardboard', 'Cardboard', 124, 124, 'pcs', 'Available', 'ITEM-972015773', 'consumables', 'Storage Room', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 16:55:44'),
+(7, 1, 'ITEM-67fa9b60744bc', 'First Aid Kit', 'First Aid Kit', 20, 16, 'pcs', 'Available', 'ITEM-477741107', 'consumables', 'Admin Office', NULL, NULL, NULL, '2025-05-04 23:14:03', '2025-04-12 16:57:04'),
+(8, 1, 'ITEM-67fa9c5f18095', 'A4 Bond Paper', 'A4 Bond Paper', 10, 10, 'bdl', 'Available', 'ITEM-324759139', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:01:19'),
+(9, 1, 'ITEM-67fa9c8f1f5be', 'Long Bond Paper', 'Long Bond Paper', 11, 11, 'bdl', 'Available', 'ITEM-932141824', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:02:07'),
+(10, 1, 'ITEM-67fa9d6f220b6', 'Office Chair', 'Office Chair', 10, 10, 'pcs', 'Available', 'ITEM-166943995', 'furniture', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:05:51'),
+(11, 1, 'ITEM-67fa9e6da1407', 'Laptop', 'Galaxy Book5 Pro 360', 6, 6, 'pcs', 'Available', 'ITEM-476850205', 'electronics', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:10:05'),
+(12, 1, 'ITEM-67fa9f0361d7a', 'Mini Trash Bin', 'Mini Trash Bin', 4, 4, 'pcs', 'Available', 'ITEM-381597685', 'accessories', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:12:35'),
+(13, 1, 'ITEM-67faa018c3a67', 'Plastic Table', 'Plastic Table', 12, 12, 'pcs', 'Available', 'ITEM-972015773', 'furniture', 'Storage Room', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:17:12'),
+(14, 1, 'ITEM-67faa0b58d5b7', 'Crayons', 'Crayola', 10, 10, 'bx', 'Available', 'ITEM-106819365', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:19:49'),
+(15, 1, 'ITEM-67faa0fb20d1f', 'White Envelope', 'White Envelope', 500, 500, 'pcs', 'Available', 'ITEM-644439902', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:20:59'),
+(16, 1, 'ITEM-67faa154f0150', 'Broom', 'Broom', 10, 10, 'pcs', 'Available', 'ITEM-519293501', 'stationary', 'Janitorial Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:22:28'),
+(17, 1, 'ITEM-67faa2ea64404', 'Disposable cups', 'Disposable cups', 5, 5, 'bx', 'Available', 'ITEM-381597685', 'consumables', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:29:14'),
+(18, 1, 'ITEM-67faa3ce3c8e1', 'Communion Wine', 'Communion Wine', 14, 14, 'pcs', 'Available', 'ITEM-922704471', 'consumables', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:33:02'),
+(19, 1, 'ITEM-67faa3f12194b', 'Candles', 'White Candles', 4, 4, 'bdl', 'Low Stock', 'ITEM-328217189', 'consumables', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:33:37'),
+(20, 1, 'ITEM-67faa548bf415', 'Paper Plates', 'Paper Plates', 234, 234, 'pcs', 'Available', 'ITEM-166943995', 'consumables', 'Storage Room', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:39:20'),
+(21, 1, 'ITEM-67faa59c68191', 'Microphone', 'Microphone', 18, 18, 'pcs', 'Available', 'ITEM-163744751', 'electronics', 'Sanctuary', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:40:44'),
+(22, 1, 'ITEM-67faa6160c955', 'Music Stand', 'Black Music Stand', 8, 8, 'pcs', 'Available', 'ITEM-552270458', 'furniture', 'Sanctuary', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:42:46'),
+(23, 1, 'ITEM-67faa677a23e4', 'Camera', 'Canon EOS 3000D with 18-55 III Non-IS Black', 6, 6, 'pcs', 'Available', 'ITEM-328217189', 'electronics', 'Sanctuary', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:44:23'),
+(24, 1, 'ITEM-67faa6d92e780', 'Flatscreen TV', 'Daewoo Electronic Appliances LED Google TV 32 Inches', 6, 6, 'pcs', 'Available', 'ITEM-106819365', 'electronics', 'Sanctuary', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:46:01'),
+(25, 1, 'ITEM-67faa7d447e99', 'Erasers', 'Erasers', 35, 35, 'pcs', 'Available', 'ITEM-106819365', 'stationary', 'Admin Office', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-12 17:50:12'),
+(26, 1, 'ITEM-67fbaa271459f', 'Wooden Table', 'Wooden Table', 8, 8, 'pcs', 'Available', 'ITEM-654719365', 'furniture', 'Sanctuary', NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-13 12:12:23'),
+(27, NULL, 'ITEM-67FBB707C3EAB', 'Ceiling Fan', NULL, 3, 3, 'pcs', 'Available', NULL, 'electronics', NULL, NULL, NULL, NULL, '2025-05-04 18:02:07', '2025-04-13 13:07:19');
 
 --
 -- Triggers `items`
@@ -200,13 +188,6 @@ CREATE TABLE `new_item_requests` (
   `request_date` datetime NOT NULL DEFAULT current_timestamp(),
   `ministry` enum('UCM','CWA','CHOIR','PWT','CYF') NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `new_item_requests`
---
-
-INSERT INTO `new_item_requests` (`request_id`, `user_id`, `item_name`, `item_category`, `quantity`, `item_unit`, `purpose`, `notes`, `status`, `request_date`, `ministry`) VALUES
-(1, 19, 'USB Type-C Connectors', 'electronics', 3, 'Piece', 'File Transferring', 'preferably 1.5m long\n\nRejection Reason: No uses', 'Rejected', '2025-04-12 23:21:58', 'CHOIR');
 
 -- --------------------------------------------------------
 
@@ -315,23 +296,6 @@ CREATE TABLE `transactions` (
   `item_id` int(11) DEFAULT NULL,
   `request_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `transactions`
---
-
-INSERT INTO `transactions` (`transaction_id`, `user_id`, `action`, `details`, `created_at`, `item_name`, `quantity`, `status`, `item_id`, `request_id`) VALUES
-(1, 19, 'Borrow', 'Borrowed 8 of item \'Candles\' in consumables category.', '2025-04-12 23:06:54', 'Candles', 8, 'Pending', 19, NULL),
-(2, 19, 'New Item Request', 'Requested 3 Piece of \'USB Type-C Connectors\' (electronics)', '2025-04-12 23:21:58', 'USB Type-C Connectors', 3, 'Pending', NULL, NULL),
-(3, 19, 'New Item Request', 'Requested 3 Piece of \'Ceiling Fan\' (electronics)', '2025-04-13 03:31:45', 'Ceiling Fan', 3, 'Pending', NULL, NULL),
-(4, 19, 'Borrow', 'Borrowed 2 of item \'Mini Trash Bin\' in accessories category.', '2025-04-13 12:15:53', 'Mini Trash Bin', 2, 'Pending', 12, NULL),
-(5, 19, 'Borrow', 'Borrowed 5 of item \'Disposable cups\' in consumables category.', '2025-04-13 12:19:29', 'Disposable cups', 5, 'Pending', 17, NULL),
-(6, 19, 'Borrow', 'Borrowed 2 of item \'First Aid Kit\' in consumables category.', '2025-04-13 12:22:48', 'First Aid Kit', 2, 'Pending', 7, NULL),
-(7, 19, 'Borrow', 'Borrowed 50 of item \'ESV Bible\' in stationary category.', '2025-04-13 13:01:27', 'ESV Bible', 50, 'Pending', 1, NULL),
-(8, 1, 'Item Approval', 'Approved and moved request for 3 Piece of \'Ceiling Fan\' to items table', '2025-04-13 13:07:19', 'Ceiling Fan', 3, '', 27, NULL),
-(9, 1, 'Item Rejection', 'Rejected request for \'USB Type-C Connectors\'. Reason: No uses', '2025-04-13 13:07:39', 'USB Type-C Connectors', 3, '', NULL, 1),
-(10, 1, 'Borrow', 'Borrowed 5 of item \'Projector\' in electronics category.', '2025-04-13 13:18:00', 'Projector', 5, 'Pending', 4, NULL),
-(11, 19, 'Borrow', 'Borrowed 5 of item \'Projector\' in electronics category.', '2025-04-13 13:33:33', 'Projector', 5, 'Pending', 4, NULL);
 
 -- --------------------------------------------------------
 
@@ -505,7 +469,7 @@ ALTER TABLE `audit_logs`
 -- AUTO_INCREMENT for table `borrow_requests`
 --
 ALTER TABLE `borrow_requests`
-  MODIFY `borrow_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `borrow_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `items`
@@ -523,7 +487,7 @@ ALTER TABLE `item_returns`
 -- AUTO_INCREMENT for table `new_item_requests`
 --
 ALTER TABLE `new_item_requests`
-  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `notifications`
@@ -559,7 +523,7 @@ ALTER TABLE `return_requests`
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `transaction_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `transaction_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `users`
