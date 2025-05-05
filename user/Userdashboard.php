@@ -1,5 +1,4 @@
 <?php
-
 // Use a secure session configuration
 session_set_cookie_params([
     'lifetime' => 0,

@@ -26,16 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // Check item availability
         $availabilityCheck = $conn->prepare("SELECT availability FROM items WHERE item_id = ?");
-        $availabilityCheck->bind_param("i", $request['item_id']);
-        $availabilityCheck->execute();
-        $availabilityResult = $availabilityCheck->get_result();
-        $item = $availabilityResult->fetch_assoc();
-        $availabilityCheck->close();
+$availabilityCheck->bind_param("i", $request['item_id']);
+$availabilityCheck->execute();
+$availabilityResult = $availabilityCheck->get_result();
+$item = $availabilityResult->fetch_assoc();
+$availabilityCheck->close();
 
-        if ($item['availability'] < $request['quantity']) {
-            echo json_encode(['success' => false, 'error' => 'Not enough available items']);
-            exit();
-        }
+if ($item['availability'] < $request['quantity']) {
+    echo json_encode(['success' => false, 'error' => 'Not enough available items']);
+    exit();
+}
+
 
         // Check if this user already has an approved request for this item
         $duplicateCheck = $conn->prepare("SELECT borrow_id FROM borrow_requests 
@@ -53,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $conn->begin_transaction();
 
         try {
-            // First, update the borrow request status to 'For Checking'
-            $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'For Checking', processed_at = NOW() WHERE borrow_id = ?");
+            // First, update the borrow request status
+            $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Approved', processed_at = NOW() WHERE borrow_id = ?");
             $stmt->bind_param("i", $requestId);
             $stmt->execute();
             $stmt->close();
@@ -93,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         echo json_encode(['success' => $success]);
         exit();
     }
+    //new
     elseif ($_POST['action'] === 'process_return') {
         $borrowId = intval($_POST['borrow_id']);
         $type = $_POST['type'];
@@ -132,14 +134,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 throw new Exception('Failed to update borrow request');
             }
 
-            if ($type === 'accept') {
-                $updateItemStmt = $conn->prepare("UPDATE items SET availability = availability + ? WHERE item_id = ?");
-                $updateItemStmt->bind_param("ii", $request['quantity'], $request['item_id']);
-                if (!$updateItemStmt->execute()) {
-                    throw new Exception('Failed to update item availability');
-                }
-                $updateItemStmt->close();
-            }
+           // If return is accepted, update item availability (not quantity)
+// If return is accepted, update item availability (not quantity)
+if ($type === 'accept') {
+    $updateItemStmt = $conn->prepare("UPDATE items SET availability = availability + ? WHERE item_id = ?");
+    $updateItemStmt->bind_param("ii", $request['quantity'], $request['item_id']);
+    if (!$updateItemStmt->execute()) {
+        throw new Exception('Failed to update item availability');
+    }
+    $updateItemStmt->close();
+}
 
             $conn->commit();
             echo json_encode(['success' => true]);
@@ -164,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         FROM borrow_requests br 
         JOIN users u ON br.user_id = u.user_id
         JOIN items i ON br.item_id = i.item_id
-        WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned', 'For Checking', 'Processed', 'Not Accepted')
+        WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned')
         ORDER BY br.request_date DESC";
         $result = $conn->query($query);
 
@@ -174,73 +178,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         echo json_encode(['rows' => $rows]);
-        exit();
-    }
-    // Action for processing items (from 'For Checking' to 'Processed')
-    elseif ($_POST['action'] === 'process_item') {
-        $requestId = intval($_POST['request_id']);
-        
-        // Start transaction
-        $conn->begin_transaction();
-        
-        try {
-            // Update the borrow request status to 'Processed'
-            $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Processed', processed_at = NOW() WHERE borrow_id = ?");
-            $stmt->bind_param("i", $requestId);
-            $stmt->execute();
-            
-            // Get item details to update user's items
-            $getStmt = $conn->prepare("SELECT user_id, item_id, quantity FROM borrow_requests WHERE borrow_id = ?");
-            $getStmt->bind_param("i", $requestId);
-            $getStmt->execute();
-            $result = $getStmt->get_result();
-            $request = $result->fetch_assoc();
-            $getStmt->close();
-            
-            // Check if user already has this item
-            $checkStmt = $conn->prepare("SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?");
-            $checkStmt->bind_param("ii", $request['user_id'], $request['item_id']);
-            $checkStmt->execute();
-            $checkResult = $checkStmt->get_result();
-            
-            if ($checkResult->num_rows > 0) {
-                // Update existing quantity
-                $updateStmt = $conn->prepare("UPDATE user_items SET quantity = quantity + ? WHERE user_id = ? AND item_id = ?");
-                $updateStmt->bind_param("iii", $request['quantity'], $request['user_id'], $request['item_id']);
-            } else {
-                // Insert new record
-                $updateStmt = $conn->prepare("INSERT INTO user_items (user_id, item_id, quantity) VALUES (?, ?, ?)");
-                $updateStmt->bind_param("iii", $request['user_id'], $request['item_id'], $request['quantity']);
-            }
-            $updateStmt->execute();
-            $updateStmt->close();
-            
-            // Commit transaction
-            $conn->commit();
-            echo json_encode(['success' => true]);
-        } catch (Exception $e) {
-            // Rollback transaction if any error occurs
-            $conn->rollback();
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-        }
-        exit();
-    }
-    // Action for fetching items ready for processing
-    elseif ($_POST['action'] === 'get_items_for_processing') {
-        $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, br.purpose, br.status
-                 FROM borrow_requests br
-                 JOIN users u ON br.user_id = u.user_id
-                 JOIN items i ON br.item_id = i.item_id
-                 WHERE br.status = 'For Checking'
-                 ORDER BY br.request_date DESC";
-        $result = $conn->query($query);
-
-        $items = [];
-        while ($row = $result->fetch_assoc()) {
-            $items[] = $row;
-        }
-
-        echo json_encode(['items' => $items]);
         exit();
     }
 }
@@ -284,172 +221,7 @@ $result = $conn->query($query);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Application Request</title>
-    <link rel="stylesheet" href="../css/Application_Request.css">
-    <style>
-        /* Add styles for the processing modal */
-        .processing-modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-        
-        .processing-modal-content {
-            background-color: #fefefe;
-            margin: 5% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 900px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        
-        .processing-modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .processing-modal-title {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .processing-modal-close {
-            color: #aaa;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .processing-modal-close:hover {
-            color: #333;
-        }
-        
-        .processing-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        
-        .processing-table th, .processing-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .processing-table th {
-            background-color: #f5f5f5;
-            font-weight: bold;
-        }
-        
-        .processing-table tr:hover {
-            background-color: #f9f9f9;
-        }
-        
-        .process-btn {
-            padding: 6px 12px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-        
-        .process-btn:hover {
-            background-color: #45a049;
-        }
-        
-        .process-btn.processed {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
-        
-        .process-btn.processed:hover {
-            background-color: #6c757d;
-        }
-        
-        .processing-modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            padding-top: 15px;
-            border-top: 1px solid #ddd;
-        }
-        
-        .processing-modal-footer button {
-            padding: 8px 16px;
-            margin-left: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        
-        .processing-modal-footer .close-btn {
-            background-color: #6c757d;
-            color: white;
-        }
-        
-        .processing-modal-footer .close-btn:hover {
-            background-color: #5a6268;
-        }
-        
-        /* Style for the process button in the main table */
-        .process-action-btn {
-            padding: 6px 12px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            margin-left: 5px;
-        }
-        
-        .process-action-btn:hover {
-            background-color: #0069d9;
-        }
-        
-        /* Status colors */
-        .status-checking {
-            color: #ffc107;
-            font-weight: bold;
-        }
-        
-        .status-processed {
-            color: #28a745;
-            font-weight: bold;
-        }
-        
-        .status-pending {
-            color: #6c757d;
-            font-weight: bold;
-        }
-        
-        .status-approved {
-            color: #17a2b8;
-            font-weight: bold;
-        }
-        
-        .status-rejected {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        
-        .status-returned {
-            color: #6f42c1;
-            font-weight: bold;
-        }
-    </style>
+    <link rel="stylesheet" href="../css/AdminItmBorrowed.css">
 </head>
 
 <body>
@@ -565,14 +337,8 @@ $result = $conn->query($query);
                                 } elseif ($row['status'] === 'Returned') {
                                     echo '<span class="status-returned" title="Returned on ' . htmlspecialchars($processedTime) . '">Returned</span>';
                                     echo '<span class="processed-time">' . htmlspecialchars($processedTime) . '</span>';
-                                } elseif ($row['status'] === 'For Checking') {
-                                    echo '<span class="status-checking" title="For Checking on ' . htmlspecialchars($processedTime) . '">For Checking</span>';
-                                    echo '<span class="processed-time">' . htmlspecialchars($processedTime) . '</span>';
-                                } elseif ($row['status'] === 'Processed') {
-                                    echo '<span class="status-processed" title="Processed on ' . htmlspecialchars($processedTime) . '">Processed</span>';
-                                    echo '<span class="processed-time">' . htmlspecialchars($processedTime) . '</span>';
                                 } else {
-                                    echo '<span class="status-pending" title="Pending approval">' . htmlspecialchars($row['status']) . '</span>';
+                                    echo '<span title="Pending approval">' . htmlspecialchars($row['status']) . '</span>';
                                 }
                                 ?>
                             </td>
@@ -581,8 +347,6 @@ $result = $conn->query($query);
                                 <?php if ($row['status'] === 'Pending'): ?>
                                     <button class="approve-btn" data-request-id="<?php echo $row['request_id']; ?>">Approve</button>
                                     <button class="reject-btn" data-request-id="<?php echo $row['request_id']; ?>">Reject</button>
-                                <?php elseif ($row['status'] === 'For Checking'): ?>
-                                    <button class="process-action-btn" data-request-id="<?php echo $row['request_id']; ?>">Process</button>
                                 <?php else: ?>
                                     <span class="processed-label">Processed</span>
                                 <?php endif; ?>
@@ -620,149 +384,6 @@ $result = $conn->query($query);
         </div>
     </div>
 
-    <!-- Processing Modal -->
-    <div id="processingModal" class="processing-modal">
-        <div class="processing-modal-content">
-            <div class="processing-modal-header">
-                <div class="processing-modal-title">Process Items</div>
-                <span class="processing-modal-close">&times;</span>
-            </div>
-            <table class="processing-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Item Name</th>
-                        <th>Purpose</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="processing-table-body">
-                    <!-- Table content will be loaded dynamically -->
-                </tbody>
-            </table>
-            <div class="processing-modal-footer">
-                <button class="close-btn">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="../js/Applications_Reqs.js"></script>
-    <script>
-        // Additional JavaScript for the processing functionality
-        document.addEventListener("DOMContentLoaded", function() {
-            // Get the modal elements
-            const processingModal = document.getElementById("processingModal");
-            const processingCloseBtn = document.querySelector(".processing-modal-close");
-            const processingCloseBtnFooter = document.querySelector(".processing-modal-footer .close-btn");
-            
-            // Function to open the processing modal
-            function openProcessingModal() {
-                // Fetch items with status 'For Checking'
-                fetch("Application_Request.php", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/x-www-form-urlencoded",
-                    },
-                    body: "action=get_items_for_processing"
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.getElementById("processing-table-body");
-                    tableBody.innerHTML = "";
-                    
-                    if (data.items && data.items.length > 0) {
-                        data.items.forEach(item => {
-                            const row = document.createElement("tr");
-                            row.innerHTML = `
-                                <td>${item.username}</td>
-                                <td>${item.item_name}</td>
-                                <td>${item.purpose}</td>
-                                <td>${item.status}</td>
-                                <td>
-                                    <button class="process-btn" data-request-id="${item.request_id}">
-                                        Process
-                                    </button>
-                                </td>
-                            `;
-                            tableBody.appendChild(row);
-                        });
-                    } else {
-                        tableBody.innerHTML = '<tr><td colspan="5">No items ready for processing</td></tr>';
-                    }
-                    
-                    // Show the modal
-                    processingModal.style.display = "block";
-                })
-                .catch(error => {
-                    console.error("Error fetching items for processing:", error);
-                });
-            }
-            
-            // Event listener for the Process button in the main table
-            document.addEventListener("click", function(event) {
-                if (event.target.classList.contains("process-action-btn")) {
-                    openProcessingModal();
-                }
-                
-                // Handle process button click inside the modal
-                if (event.target.classList.contains("process-btn")) {
-                    const requestId = event.target.getAttribute("data-request-id");
-                    
-                    if (confirm("Are you sure you want to mark this item as processed?")) {
-                        fetch("Application_Request.php", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/x-www-form-urlencoded",
-                            },
-                            body: `action=process_item&request_id=${requestId}`
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Update the button in the modal
-                                event.target.textContent = "Processed";
-                                event.target.classList.add("processed");
-                                event.target.disabled = true;
-                                
-                                // Show success message
-                                alert("Item marked as processed successfully");
-                                
-                                // Refresh the main table
-                                refreshTable();
-                                
-                                // Close the modal after 1 second
-                                setTimeout(() => {
-                                    processingModal.style.display = "none";
-                                }, 1000);
-                            } else {
-                                alert("Error: " + (data.error || "Failed to process item"));
-                            }
-                        })
-                        .catch(error => {
-                            console.error("Error:", error);
-                            alert("An error occurred while processing your request");
-                        });
-                    }
-                }
-            });
-            
-            // Close the modal when the close button is clicked
-            processingCloseBtn.onclick = function() {
-                processingModal.style.display = "none";
-            };
-            
-            processingCloseBtnFooter.onclick = function() {
-                processingModal.style.display = "none";
-            };
-            
-            // Close the modal when clicking outside of it
-            window.addEventListener("click", function(event) {
-                if (event.target === processingModal) {
-                    processingModal.style.display = "none";
-                }
-            });
-        });
-    </script>
+    <script src="../js/Application_Request.js"></script>
 </body>
 </html>

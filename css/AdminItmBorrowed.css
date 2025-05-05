@@ -3,7 +3,7 @@
         src: url('Akrobat.otf') format('opentype');
         font-weight: normal;
         font-style: normal;
-        /*font-family: 'Akrobat', sans-serif;*/
+        /* font-family: 'Akrobat', sans-serif; */
     }
 
     @font-face {
@@ -186,37 +186,6 @@
         }
     }
 
-
-    /* Filter Container */
-    .filter-container {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 20px;
-        padding: 10px;
-        background-color: #f5f5f5;
-        border-radius: 5px;
-    }
-
-
-    /* Filter Container */
-    .filter-container {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 20px;
-        padding: 10px;
-        background-color: #f5f5f5;
-        border-radius: 5px;
-    }
-
-    .filter-container input[type="text"],
-    .filter-container input[type="date"] {
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-    }
-
     /* Dropdown Content */
     .dropdown-content {
         display: none;
@@ -367,64 +336,130 @@
     }
 
 
-    .main-content h2 {
-        font-family: 'Akrobat', sans-serif;
+    /* Filter Container */
+    .filter-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
     }
 
+    .search-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    .search-wrapper i.fas.fa-search {
+        position: absolute;
+        right: 10px; /* Changed from left to right */
+        top: 50%;
+        transform: translateY(-50%);
+        color: #777;
+        font-size: 14px;
+        pointer-events: none; /* Prevents the icon from blocking clicks */
+    }
+
+    .filter-container input[type="text"],
+    .filter-container input[type="date"] {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    /* Table Styling */
     .item-table {
-        width: 100%;
+        table-layout: flex; /* This prevents column width shifting */
+        width: 100%; /* Reduce table width */
+        background-color: #fff;
         border-collapse: collapse;
         margin-top: 20px;
-        background: #fff;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         border-radius: 8px;
         overflow: hidden;
     }
 
-    .item-table th, .item-table td {
-        padding: 12px;
-        border: 1px solid #ddd;
-        text-align: center; /* Center text */
-    }
 
 
-    .item-table thead {
-        background: #006400;
+    /* Table Header */
+    .item-table thead th {
+        background-color: #006400;
         color: white;
         font-weight: bold;
+        font-size: 14px; /* Reduce font size */
+        padding: 8px; /* Decrease padding */
+        text-align: center;
+    }
+
+    /* Table Body */
+    .item-table tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
     }
 
     .item-table tbody tr:hover {
         background: rgba(0, 100, 0, 0.1);
     }
 
+    .item-table th, .item-table td {
+        padding: 8px; /* Reduce padding */
+        border: 1px solid #ddd;
+        text-align: center;
+        font-size: 13px; /* Reduce font size */
+    }
+
     .item-table tbody td {
         color: #333;
+    }
+
+    /* Buttons */
+    .approve-btn, .reject-btn {
+        padding: 5px 8px; /* Reduce button size */
+        font-size: 13px;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        margin: 2px;
     }
 
     .approve-btn {
         background-color: #28a745;
         color: white;
-        padding: 5px 10px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        margin: 2px;
+    }
+
+    .approve-btn:hover {
+        background-color: #218838;
     }
 
     .reject-btn {
         background-color: #dc3545;
         color: white;
-        padding: 5px 10px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        margin: 2px;
     }
 
+    .reject-btn:hover {
+        background-color: #c82333;
+    }
+
+    /* Filter Input */
+    .filter-container input {
+        padding: 6px; /* Reduce input padding */
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 13px;
+    }
+
+    label {
+        font-weight: bold;
+        font-size: 13px;
+    }
+
+    /* General Button Hover Effect */
     button:hover {
         opacity: 0.8;
     }
+
 
     .pagination {
         display: flex;
@@ -448,6 +483,20 @@
         cursor: not-allowed;
     }
 
+
+    #search-box {
+        flex: 1;
+        max-width: 200px;
+    }
+
+    label {
+        font-weight: bold;
+        margin-left: 5px;
+    }
+
+    input[type="date"] {
+        max-width: 150px;
+    }
     /* for reject modal*/
     /* Modal Styles */
     .modal {
@@ -481,6 +530,16 @@
         top: 10px;
         font-size: 20px;
         cursor: pointer;
+    }
+
+    /* Textarea */
+    .modal-content textarea {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        resize: none;
+        font-size: 14px;
     }
 
     /* Modal Buttons */
@@ -525,374 +584,260 @@
         background: darkgray;
     }
 
-
-    .tab-nav {
-        display: flex;
-        gap: 15px;
-        margin-bottom: 25px;
-        border-bottom: 2px solid #006400;
+    .status-cell {
+        white-space: normal;
+        line-height: 1.4;
     }
 
-    .tab-nav a {
-        padding: 12px 25px;
-        text-decoration: none;
-        color: #333;
-        border-radius: 5px 5px 0 0;
-        transition: all 0.3s ease;
-        font-weight: bold;
-    }
-
-    .tab-nav a.active-tab {
-        background: #006400;
-        color: white;
-        transform: translateY(2px);
-    }
-
-    .request-form {
-        background: #fff;
-        padding: 25px;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        max-width: 100%;
-    }
-
-    .form-row {
-        display: flex;
-        gap: 30px;
-        margin-bottom: 20px;
-    }
-
-    .form-group {
-        flex: 1;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        color: #333;
-        font-weight: bold;
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        font-family: 'Akrobat', sans-serif;
-    }
-
-    .form-buttons {
-        display: flex;
-        gap: 15px;
-        margin-top: 20px;
-    }
-
-    .submit-btn {
-        background: #006400;
-        color: white;
-        padding: 12px 30px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background 0.3s ease;
-    }
-
-    .reset-btn {
-        background: #666;
-        color: white;
-        padding: 12px 30px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background 0.3s ease;
-    }
-
-    .status {
-        padding: 5px 10px;
-        border-radius: 15px;
-        font-size: 0.9em;
-        display: inline-block;
-    }
-    .status.pending { background: #ffd700; color: #333; }
-    .status.approved { background: #28a745; color: white; }
-    .status.rejected { background: #dc3545; color: white; }
-
-    .request-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-        background: #fff;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-
-    .request-table th {
-        background: #006400;
-        color: white;
-        padding: 15px;
-    }
-
-    .request-table td {
-        padding: 12px;
-        border-bottom: 1px solid #eee;
-    }
-
-    .request-table tr:hover {
-        background: rgba(0,100,0,0.05);
-    }
-
-    @media (max-width: auto) {
-        .form-row {
-            flex-direction: column;
-        }
-        
-        .main-content {
-            margin-left: 0;
-            padding: 15px;
-        }
-        
-        .sidebar {
-            width: 100%;
-            height: auto;
-            position: relative;
-            top: 0;
-        }
-    }
-
-
-    .status-approved {
+    .status-cell .status-approved {
         color: green;
         font-weight: bold;
     }
 
-    .status-rejected {
+    .status-cell .status-rejected {
         color: red;
         font-weight: bold;
     }
 
-    .error-text {
-        color: #dc3545;
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
+    .status-cell .processed-time {
+        font-size: 0.85em;
+        color: #666;
+        display: block;
+        margin-top: 2px;
     }
 
-    /* Modal Styles */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-content {
-        background-color: #fff;
-        margin: 15% auto;
-        padding: 20px;
-        border: 1px solid #888;
-        width: 50%;
-        border-radius: 8px;
-    }
-
-    .close-btn {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
+    /* Alternative approach if you prefer class-based styling on the td */
+    .status-cell.approved {
+        color: green;
         font-weight: bold;
-        cursor: pointer;
     }
 
-    .close-btn:hover,
-    .close-btn:focus {
-        color: black;
-        text-decoration: none;
-        cursor: pointer;
+    .status-cell.rejected {
+        color: red;
+        font-weight: bold;
     }
 
-    /* Borrow Cart Styles */
-.borrow-cart-container {
-    margin-top: 30px;
-    background-color: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
+    .status-returned {
+        color: #0066cc;
+        font-weight: bold;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
 
-.borrow-cart-container h2 {
-    color: #333;
-    margin-bottom: 15px;
-    font-size: 1.5rem;
-    border-bottom: 2px solid #f0f0f0;
-    padding-bottom: 10px;
-}
+    .status-cell {
+        position: relative;
+    }
 
-.cart-table-wrapper {
-    overflow-x: auto;
-}
+    .processed-time {
+        display: block;
+        font-size: 0.8em;
+        color: #666;
+        margin-top: 2px;
+    }
 
-.borrow-cart-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-}
+    .rejection-reason {
+        font-size: 0.8em;
+        color: #d32f2f;
+        margin-top: 3px;
+        font-style: italic;
+    }
 
-.borrow-cart-table th {
-    background-color: #f8f9fa;
-    color: #333;
-    font-weight: 600;
-    padding: 12px 15px;
-    text-align: left;
-    border-bottom: 2px solid #dee2e6;
-}
+    /* Add cursor pointer to show there's a tooltip */
+    [title] {
+        cursor: help;
+    }
 
-.borrow-cart-table td {
-    padding: 12px 15px;
-    border-bottom: 1px solid #dee2e6;
-    vertical-align: middle;
-}
+    .word-counter {
+        font-size: 0.8em;
+        color: #666;
+        text-align: right;
+        margin-top: 5px;
+    }
 
-.borrow-cart-table tbody tr:last-child td {
-    border-bottom: none;
-}
+    .word-counter span {
+        font-weight: bold;
+    }
 
-.borrow-cart-table tbody tr:hover {
-    background-color: #f8f9fa;
-}
+    .filter-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
 
-.cart-actions {
+    .filter-container label {
+        font-weight: 500;
+        margin-right: 5px;
+    }
+
+    .filter-container input[type="date"] {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .search-wrapper {
+        position: relative;
+        margin-right: auto;
+    }
+
+    .search-wrapper i {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #777;
+    }
+
+    .search-wrapper input {
+        padding: 8px 8px 8px 35px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        width: 250px;
+    }
+
+    /* Add these styles to your existing CSS */
+
+.form-group {
     display: flex;
-    justify-content: flex-end;
-    gap: 15px;
-    margin-top: 20px;
+    align-items: center;
+    gap: 8px;
+    margin-right: 10px;
 }
 
-.submit-all-btn {
-    background-color: #28a745;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: background-color 0.3s;
-}
-
-.submit-all-btn:hover {
-    background-color: #218838;
-}
-
-.clear-cart-btn {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: background-color 0.3s;
-}
-
-.clear-cart-btn:hover {
-    background-color: #c82333;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .borrow-cart-table th,
-    .borrow-cart-table td {
-        padding: 8px 10px;
-    }
-    
-    .cart-actions {
-        flex-direction: column;
-    }
-    
-    .submit-all-btn,
-    .clear-cart-btn {
-        width: 100%;
-    }
-}
-
-/* Cart Button Styles */
-.cart-btn {
-    background-color: #ffc107;
-    color: #212529;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: background-color 0.3s;
-    margin: 0 10px;
-}
-
-.cart-btn:hover {
-    background-color: #e0a800;
-}
-
-.cart-btn i {
+.form-group label {
     margin-right: 5px;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
-/* Remove Button Styles */
-.remove-item-btn {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    padding: 5px 10px;
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group select {
+    min-width: 150px;
+    background-color: white;
+    cursor: pointer;
+}
+
+.form-group input[type="date"] {
+    max-width: 150px;
+}
+
+.clear-filters-btn {
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ddd;
+    padding: 8px 12px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     gap: 5px;
 }
 
-.remove-item-btn:hover {
-    background-color: #c0392b;
+.clear-filters-btn:hover {
+    background-color: #e0e0e0;
 }
 
-.remove-item-btn i {
-    font-size: 12px;
-}
-
-/* Confirmation Modal Styles */
-.confirmation-buttons {
+/* Update the filter-container to better handle form groups */
+.filter-container {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 15px;
-    margin-top: 20px;
+    margin-bottom: 20px;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.confirm-btn {
-    padding: 8px 20px;
-    border: none;
+.left-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.right-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* Update search wrapper to work with form-group */
+.search-wrapper {
+    position: relative;
+}
+
+.search-wrapper i.fas.fa-search {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #777;
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.search-wrapper input {
+    padding: 8px 8px 8px 35px;
+    border: 1px solid #ddd;
     border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: background-color 0.3s;
+    width: 250px;
 }
 
-.confirm-btn {
-    background-color: #2ecc71;
-    color: white;
+.date-range {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.confirm-btn:hover {
-    background-color: #27ae60;
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .filter-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .left-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-group {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .search-wrapper input {
+        width: 100%;
+    }
+    
+    .right-buttons {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 10px;
+    }
 }
 
-.cancel-btn {
-    background-color: #e74c3c;
-    color: white;
+.search-container {
+    display: flex;
+    align-items: center; /* Vertically align the items */
+    justify-content: space-between; /* Push the items to the far ends */
+    width: 100%; /* Or any width you prefer */
+    position: relative;
 }
 
-.cancel-btn:hover {
-    background-color: #c0392b;
+.fas.fa-search {
+    margin-left: 85%; /* Adjust if needed for spacing */
 }
