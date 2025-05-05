@@ -384,6 +384,6 @@ $result = $conn->query($query);
         </div>
     </div>
 
-    <script src="../js/Application_Request.js"></script>
+    <script src="../js/Applications_Requests.js"></script>
 </body>
 </html>
