@@ -2,6 +2,49 @@
 include '../config/db_connection.php';
 session_start();
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['check_availability'])) {
+    // Handle availability check request
+    $itemId = intval($_GET['item_id'] ?? 0);
+    $category = htmlspecialchars($_GET['item_category'] ?? '');
+
+    if (!$itemId || !$category) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Item ID and category are required']);
+        exit();
+    }
+
+    // Fetch item quantity
+    $itemStmt = $conn->prepare("SELECT quantity FROM items WHERE item_id = ? AND item_category = ?");
+    $itemStmt->bind_param("is", $itemId, $category);
+    $itemStmt->execute();
+    $itemResult = $itemStmt->get_result();
+    $itemData = $itemResult->fetch_assoc();
+    $itemStmt->close();
+
+    if (!$itemData) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Item not found']);
+        exit();
+    }
+
+    $availableQty = $itemData['quantity'];
+
+    // Check reserved quantity
+    $reservedStmt = $conn->prepare("SELECT SUM(quantity) AS reserved FROM borrow_requests 
+                                   WHERE item_id = ? AND status = 'Approved'");
+    $reservedStmt->bind_param("i", $itemId);
+    $reservedStmt->execute();
+    $reservedResult = $reservedStmt->get_result();
+    $reservedData = $reservedResult->fetch_assoc();
+    $reservedStmt->close();
+
+    $actuallyAvailable = $availableQty - ($reservedData['reserved'] ?? 0);
+
+    header('Content-Type: application/json');
+    echo json_encode(['available' => $actuallyAvailable]);
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $itemCategory = htmlspecialchars($_POST['item_category'] ?? '');
     $itemId = intval($_POST['item_id'] ?? 0);
@@ -358,12 +401,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label for="quantity">Quantity:</label>
-                        <input type="number" id="quantity" name="quantity" 
-                               min="1" required placeholder="Enter quantity">
-                    </div>
-                </div>
+    <div class="form-group">
+        <label for="quantity">Quantity:</label>
+        <div id="quantity-container">
+            <input type="number" id="quantity" name="quantity" 
+                   min="1" required placeholder="Enter quantity">
+        </div>
+    </div>
+</div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -440,6 +485,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
     </div>
 </div>
 
-    <script src="../js/userItemsborroweds.js"></script>
+    <script src="../js/UsersItemsborroweds.js"></script>
 </body>
 </html>

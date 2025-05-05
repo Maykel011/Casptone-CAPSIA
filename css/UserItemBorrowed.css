@@ -896,3 +896,13 @@
 .cancel-btn:hover {
     background-color: #c0392b;
 }
+
+.availability {
+    color: #28a745;
+    font-weight: bold;
+}
+
+/* Update the quantity input styling */
+#quantity {
+    margin-top: 5px;
+}

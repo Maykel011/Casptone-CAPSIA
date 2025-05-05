@@ -60,6 +60,46 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
+    // Add this event listener in your JavaScript code
+itemDropdown.addEventListener("change", function() {
+    const itemId = this.value;
+    const category = itemCategory.value;
+    
+    if (itemId && category) {
+        fetchItemAvailability(itemId, category);
+    }
+});
+
+//////////////////////// IITEM AVAILABILITY////////////////////////
+function fetchItemAvailability(itemId, category) {
+    fetch(`UserItemBorrow.php?check_availability=1&item_id=${itemId}&item_category=${category}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                console.error(data.error);
+                return;
+            }
+            
+            // Update the quantity field label to show availability
+            const quantityLabel = document.querySelector('label[for="quantity"]');
+            if (quantityLabel) {
+                quantityLabel.innerHTML = `Quantity: <span class="availability">${data.available} Available</span>`;
+            }
+            
+            // Set max attribute on quantity input
+            const quantityInput = document.getElementById('quantity');
+            if (quantityInput) {
+                quantityInput.max = data.available;
+                quantityInput.placeholder = `Max ${data.available}`;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching item availability:', error);
+        });
+}
     //////////////////////// USER PROFILE DROPDOWN ////////////////////////
     userIcon.addEventListener("click", function (event) {
         event.stopPropagation();
