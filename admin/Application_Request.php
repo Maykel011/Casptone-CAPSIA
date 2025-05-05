@@ -221,7 +221,7 @@ $result = $conn->query($query);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Application Request</title>
-    <link rel="stylesheet" href="../css/AdminItmBorrowed.css">
+    <link rel="stylesheet" href="../css/Aplications_request.css">
 </head>
 
 <body>
