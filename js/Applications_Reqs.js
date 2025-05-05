@@ -233,19 +233,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ====================
-    // AUTO REFRESH FUNCTIONALITY
+    // TABLE REFRESH FUNCTIONALITY
     // ====================
-    let refreshInterval = 30000; // 30 seconds
-    let refreshTimer;
-    
-    function startAutoRefresh() {
-        refreshTimer = setInterval(refreshTable, refreshInterval);
-    }
-    
-    function stopAutoRefresh() {
-        clearInterval(refreshTimer);
-    }
-    
     async function refreshTable() {
         try {
             const response = await fetch("Application_Request.php", {
@@ -306,8 +295,14 @@ document.addEventListener("DOMContentLoaded", function () {
                             } else if (row.status === "Returned") {
                                 td.innerHTML = `<span class="status-returned" title="Returned on ${processedTime}">Returned</span><span class="processed-time">${processedTime}</span>`;
                                 tr.setAttribute("data-status", "Returned");
+                            } else if (row.status === "For Checking") {
+                                td.innerHTML = `<span class="status-checking" title="For Checking on ${processedTime}">For Checking</span><span class="processed-time">${processedTime}</span>`;
+                                tr.setAttribute("data-status", "For Checking");
+                            } else if (row.status === "Processed") {
+                                td.innerHTML = `<span class="status-processed" title="Processed on ${processedTime}">Processed</span><span class="processed-time">${processedTime}</span>`;
+                                tr.setAttribute("data-status", "Processed");
                             } else {
-                                td.innerHTML = `<span title="Pending approval">${row.status}</span>`;
+                                td.innerHTML = `<span class="status-pending" title="Pending approval">${row.status}</span>`;
                                 tr.setAttribute("data-status", row.status);
                             }
                         } else if (index === 10) { // Action cell
@@ -325,6 +320,12 @@ document.addEventListener("DOMContentLoaded", function () {
                                 
                                 td.appendChild(approveBtn);
                                 td.appendChild(rejectBtn);
+                            } else if (row.status === "For Checking") {
+                                const processBtn = document.createElement("button");
+                                processBtn.className = "process-action-btn";
+                                processBtn.setAttribute("data-request-id", row.request_id);
+                                processBtn.textContent = "Process";
+                                td.appendChild(processBtn);
                             } else {
                                 const span = document.createElement("span");
                                 span.className = "processed-label";
@@ -368,7 +369,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    refreshTable();
+                    refreshTable(); // Manual refresh after approval
                     showNotification("Request approved successfully", "success");
                 } else {
                     showNotification(data.error || "Error approving request", "error");
@@ -413,7 +414,7 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                refreshTable();
+                refreshTable(); // Manual refresh after rejection
                 modal.style.display = "none";
                 rejectionReason.value = "";
                 errorMessage.textContent = "";
@@ -442,7 +443,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    refreshTable();
+                    refreshTable(); // Manual refresh after return
                     showNotification("Item marked as returned", "success");
                 } else {
                     showNotification("Error marking item as returned", "error");
@@ -454,6 +455,120 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         }
     }
+
+    // ====================
+    // PROCESSING MODAL FUNCTIONALITY
+    // ====================
+    const processingModal = document.getElementById("processingModal");
+    const processingCloseBtn = document.querySelector(".processing-modal-close");
+    const processingCloseBtnFooter = document.querySelector(".processing-modal-footer .close-btn");
+    
+    // Function to open the processing modal
+    function openProcessingModal() {
+        // Fetch items with status 'For Checking'
+        fetch("Application_Request.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "action=get_items_for_processing"
+        })
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById("processing-table-body");
+            tableBody.innerHTML = "";
+            
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(item => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${item.username}</td>
+                        <td>${item.item_name}</td>
+                        <td>${item.purpose}</td>
+                        <td>${item.status}</td>
+                        <td>
+                            <button class="process-btn" data-request-id="${item.request_id}">
+                                Process
+                            </button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } else {
+                tableBody.innerHTML = '<tr><td colspan="5">No items ready for processing</td></tr>';
+            }
+            
+            // Show the modal
+            processingModal.style.display = "block";
+        })
+        .catch(error => {
+            console.error("Error fetching items for processing:", error);
+        });
+    }
+    
+    // Event listener for the Process button in the main table
+    document.addEventListener("click", function(event) {
+        if (event.target.classList.contains("process-action-btn")) {
+            openProcessingModal();
+        }
+        
+        // Handle process button click inside the modal
+        if (event.target.classList.contains("process-btn")) {
+            const requestId = event.target.getAttribute("data-request-id");
+            
+            if (confirm("Are you sure you want to mark this item as processed?")) {
+                fetch("Application_Request.php", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: `action=process_item&request_id=${requestId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update the button in the modal
+                        event.target.textContent = "Processed";
+                        event.target.classList.add("processed");
+                        event.target.disabled = true;
+                        
+                        // Show success message
+                        alert("Item marked as processed successfully");
+                        
+                        // Refresh the main table
+                        refreshTable(); // Manual refresh after processing
+                        
+                        // Close the modal after 1 second
+                        setTimeout(() => {
+                            processingModal.style.display = "none";
+                        }, 1000);
+                    } else {
+                        alert("Error: " + (data.error || "Failed to process item"));
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("An error occurred while processing your request");
+                });
+            }
+        }
+    });
+    
+    // Close the modal when the close button is clicked
+    processingCloseBtn.onclick = function() {
+        processingModal.style.display = "none";
+    };
+    
+    processingCloseBtnFooter.onclick = function() {
+        processingModal.style.display = "none";
+    };
+    
+    // Close the modal when clicking outside of it
+    window.addEventListener("click", function(event) {
+        if (event.target === processingModal) {
+            processingModal.style.display = "none";
+        }
+    });
 
     // ====================
     // EVENT LISTENERS
@@ -501,10 +616,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // INITIALIZATION
     // ====================
     showPage(currentPage);
-    startAutoRefresh();
-    
-    // Stop auto-refresh when page is unloaded
-    window.addEventListener("beforeunload", stopAutoRefresh);
 });
 
 // Make pagination functions available globally

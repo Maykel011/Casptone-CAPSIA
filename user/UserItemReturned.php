@@ -159,7 +159,7 @@ $accountName = $user['username'] ?? 'Guest';
 
 <div class="main-content">
     <div class="table-container">
-        <h2>Borrowed Item</h2>
+        <h2>Returning Item</h2>
 
         <div class="filter-container">
             <input type="text" id="search-input" placeholder="Search..." oninput="searchTable()">
