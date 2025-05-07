@@ -12,7 +12,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
 
-    // Approve action
+    // Approve action - changed to For Checking status
     if ($_POST['action'] === 'approve') {
         $requestId = intval($_POST['request_id']);
 
@@ -26,21 +26,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // Check item availability
         $availabilityCheck = $conn->prepare("SELECT availability FROM items WHERE item_id = ?");
-$availabilityCheck->bind_param("i", $request['item_id']);
-$availabilityCheck->execute();
-$availabilityResult = $availabilityCheck->get_result();
-$item = $availabilityResult->fetch_assoc();
-$availabilityCheck->close();
+        $availabilityCheck->bind_param("i", $request['item_id']);
+        $availabilityCheck->execute();
+        $availabilityResult = $availabilityCheck->get_result();
+        $item = $availabilityResult->fetch_assoc();
+        $availabilityCheck->close();
 
-if ($item['availability'] < $request['quantity']) {
-    echo json_encode(['success' => false, 'error' => 'Not enough available items']);
-    exit();
-}
-
+        if ($item['availability'] < $request['quantity']) {
+            echo json_encode(['success' => false, 'error' => 'Not enough available items']);
+            exit();
+        }
 
         // Check if this user already has an approved request for this item
         $duplicateCheck = $conn->prepare("SELECT borrow_id FROM borrow_requests 
-                                        WHERE user_id = ? AND item_id = ? AND status = 'Approved'");
+                                        WHERE user_id = ? AND item_id = ? AND status IN ('Approved', 'For Checking', 'For Releasing', 'Released')");
         $duplicateCheck->bind_param("ii", $request['user_id'], $request['item_id']);
         $duplicateCheck->execute();
         $duplicateResult = $duplicateCheck->get_result();
@@ -54,8 +53,8 @@ if ($item['availability'] < $request['quantity']) {
         $conn->begin_transaction();
 
         try {
-            // First, update the borrow request status
-            $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Approved', processed_at = NOW() WHERE borrow_id = ?");
+            // First, update the borrow request status to For Checking
+            $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'For Checking', processed_at = NOW() WHERE borrow_id = ?");
             $stmt->bind_param("i", $requestId);
             $stmt->execute();
             $stmt->close();
@@ -75,7 +74,33 @@ if ($item['availability'] < $request['quantity']) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         exit();
-    } elseif ($_POST['action'] === 'reject') {
+    } 
+    // Process action - for changing status from For Checking to For Releasing
+    elseif ($_POST['action'] === 'process') {
+        $requestId = intval($_POST['request_id']);
+
+        $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'For Releasing', processed_at = NOW() WHERE borrow_id = ?");
+        $stmt->bind_param("i", $requestId);
+        $success = $stmt->execute();
+        $stmt->close();
+
+        echo json_encode(['success' => $success]);
+        exit();
+    }
+    // Release action - for changing status from For Releasing to Released
+    elseif ($_POST['action'] === 'release') {
+        $requestId = intval($_POST['request_id']);
+
+        $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Released', processed_at = NOW() WHERE borrow_id = ?");
+        $stmt->bind_param("i", $requestId);
+        $success = $stmt->execute();
+        $stmt->close();
+
+        echo json_encode(['success' => $success]);
+        exit();
+    }
+    // Reject action
+    elseif ($_POST['action'] === 'reject') {
         $requestId = intval($_POST['request_id']);
         $reason = $_POST['reason'] ?? '';
 
@@ -94,10 +119,9 @@ if ($item['availability'] < $request['quantity']) {
         echo json_encode(['success' => $success]);
         exit();
     }
-    //new
-    elseif ($_POST['action'] === 'process_return') {
-        $borrowId = intval($_POST['borrow_id']);
-        $type = $_POST['type'];
+    // Return action
+    elseif ($_POST['action'] === 'return') {
+        $requestId = intval($_POST['request_id']);
 
         // Start transaction
         $conn->begin_transaction();
@@ -105,45 +129,23 @@ if ($item['availability'] < $request['quantity']) {
         try {
             // Get the request details first
             $checkStmt = $conn->prepare("SELECT item_id, quantity FROM borrow_requests WHERE borrow_id = ?");
-            $checkStmt->bind_param("i", $borrowId);
+            $checkStmt->bind_param("i", $requestId);
             $checkStmt->execute();
             $result = $checkStmt->get_result();
             $request = $result->fetch_assoc();
             $checkStmt->close();
 
-            // Update item_returns table
-            $status = ($type === 'accept') ? 'Processed' : 'Not Accepted';
-            $reason = $_POST['reason'] ?? null;
+            // Update the borrow request status
+            $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Returned', processed_at = NOW() WHERE borrow_id = ?");
+            $stmt->bind_param("i", $requestId);
+            $stmt->execute();
+            $stmt->close();
 
-            $stmt = $conn->prepare("UPDATE item_returns 
-                                  SET status = ?, reason = ?
-                                  WHERE borrow_id = ?");
-            $stmt->bind_param("ssi", $status, $reason, $borrowId);
-
-            if (!$stmt->execute()) {
-                throw new Exception('Failed to update return status');
-            }
-
-            // Update borrow_requests table
-            $updateBorrow = $conn->prepare("UPDATE borrow_requests 
-                                          SET status = 'Returned'
-                                          WHERE borrow_id = ?");
-            $updateBorrow->bind_param("i", $borrowId);
-
-            if (!$updateBorrow->execute()) {
-                throw new Exception('Failed to update borrow request');
-            }
-
-           // If return is accepted, update item availability (not quantity)
-// If return is accepted, update item availability (not quantity)
-if ($type === 'accept') {
-    $updateItemStmt = $conn->prepare("UPDATE items SET availability = availability + ? WHERE item_id = ?");
-    $updateItemStmt->bind_param("ii", $request['quantity'], $request['item_id']);
-    if (!$updateItemStmt->execute()) {
-        throw new Exception('Failed to update item availability');
-    }
-    $updateItemStmt->close();
-}
+            // Update item availability
+            $updateItemStmt = $conn->prepare("UPDATE items SET availability = availability + ? WHERE item_id = ?");
+            $updateItemStmt->bind_param("ii", $request['quantity'], $request['item_id']);
+            $updateItemStmt->execute();
+            $updateItemStmt->close();
 
             $conn->commit();
             echo json_encode(['success' => true]);
@@ -152,24 +154,36 @@ if ($type === 'accept') {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         exit();
-    } elseif ($_POST['action'] === 'return') {
-        $requestId = intval($_POST['request_id']);
-        $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Returned', processed_at = NOW() WHERE borrow_id = ?");
-        $stmt->bind_param("i", $requestId);
-        $success = $stmt->execute();
-        $stmt->close();
+    } 
+    // Get requests for modal
+    elseif ($_POST['action'] === 'get_requests') {
+        $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_category, 
+                 br.status, br.quantity, br.request_date, br.processed_at
+                 FROM borrow_requests br 
+                 JOIN users u ON br.user_id = u.user_id
+                 JOIN items i ON br.item_id = i.item_id
+                 WHERE br.status IN ('For Checking', 'For Releasing', 'Released')
+                 ORDER BY br.request_date DESC";
+        $result = $conn->query($query);
 
-        echo json_encode(['success' => $success]);
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+
+        echo json_encode(['success' => true, 'requests' => $rows]);
         exit();
-    } elseif ($_POST['action'] === 'refresh') {
+    }
+    // Refresh action
+    elseif ($_POST['action'] === 'refresh') {
         $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_category,
-        br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
-        br.status, br.request_date, br.processed_at, br.rejection_reason
-        FROM borrow_requests br 
-        JOIN users u ON br.user_id = u.user_id
-        JOIN items i ON br.item_id = i.item_id
-        WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned')
-        ORDER BY br.request_date DESC";
+                br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
+                br.status, br.request_date, br.processed_at, br.rejection_reason
+                FROM borrow_requests br 
+                JOIN users u ON br.user_id = u.user_id
+                JOIN items i ON br.item_id = i.item_id
+                WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned', 'For Checking', 'For Releasing', 'Released')
+                ORDER BY br.request_date DESC";
         $result = $conn->query($query);
 
         $rows = [];
@@ -210,6 +224,7 @@ $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_cat
         FROM borrow_requests br 
         JOIN users u ON br.user_id = u.user_id
         JOIN items i ON br.item_id = i.item_id
+        WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned', 'For Checking', 'For Releasing', 'Released')
         ORDER BY br.request_date DESC";
 $result = $conn->query($query);
 ?>
@@ -221,7 +236,8 @@ $result = $conn->query($query);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Application Request</title>
-    <link rel="stylesheet" href="../css/Aplications_request.css">
+    <link rel="stylesheet" href="../css/Application_Reqs.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body>
@@ -279,18 +295,20 @@ $result = $conn->query($query);
                 </div>
             </div>
             <div class="form-group">
-                <label for="returned-filter">Date Returned:</label>
-                <select id="returned-filter" class="form-control">
+                <label for="status-filter">Status:</label>
+                <select id="status-filter" class="form-control">
                     <option value="all">All</option>
-                    <option value="today">Today</option>
-                    <option value="this_week">This Week</option>
-                    <option value="this_month">This Month</option>
-                    <option value="custom">Custom Date</option>
+                    <option value="Pending">Pending</option>
+                    <option value="For Checking">For Checking</option>
+                    <option value="For Releasing">For Releasing</option>
+                    <option value="Released">Released</option>
+                    <option value="Returned">Returned</option>
+                    <option value="Rejected">Rejected</option>
                 </select>
             </div>
-            <div class="form-group" id="custom-date-container" style="display:none;">
-                <input type="date" id="custom-date" class="form-control">
-            </div>
+            <button id="view-list-btn" class="btn-primary">
+                <i class="fas fa-list"></i> View List
+            </button>
         </div>
 
         <table class="item-table">
@@ -321,7 +339,7 @@ $result = $conn->query($query);
                             <td><?php echo htmlspecialchars($row['quantity']); ?></td>
                             <td><?php echo htmlspecialchars($row['purpose']); ?></td>
                             <td><?php echo htmlspecialchars($row['notes']); ?></td>
-                            <td class="status-cell <?php echo strtolower($row['status']); ?>">
+                            <td class="status-cell <?php echo strtolower(str_replace(' ', '-', $row['status'])); ?>">
                                 <?php
                                 $processedTime = $row['processed_at'] ? (new DateTime($row['processed_at']))->format('M j, Y g:i A') : '';
 
@@ -337,6 +355,15 @@ $result = $conn->query($query);
                                 } elseif ($row['status'] === 'Returned') {
                                     echo '<span class="status-returned" title="Returned on ' . htmlspecialchars($processedTime) . '">Returned</span>';
                                     echo '<span class="processed-time">' . htmlspecialchars($processedTime) . '</span>';
+                                } elseif ($row['status'] === 'For Checking') {
+                                    echo '<span class="status-checking" title="For Checking since ' . htmlspecialchars($processedTime) . '">For Checking</span>';
+                                    echo '<span class="processed-time">' . htmlspecialchars($processedTime) . '</span>';
+                                } elseif ($row['status'] === 'For Releasing') {
+                                    echo '<span class="status-releasing" title="For Releasing since ' . htmlspecialchars($processedTime) . '">For Releasing</span>';
+                                    echo '<span class="processed-time">' . htmlspecialchars($processedTime) . '</span>';
+                                } elseif ($row['status'] === 'Released') {
+                                    echo '<span class="status-released" title="Released on ' . htmlspecialchars($processedTime) . '">Released</span>';
+                                    echo '<span class="processed-time">' . htmlspecialchars($processedTime) . '</span>';
                                 } else {
                                     echo '<span title="Pending approval">' . htmlspecialchars($row['status']) . '</span>';
                                 }
@@ -347,6 +374,8 @@ $result = $conn->query($query);
                                 <?php if ($row['status'] === 'Pending'): ?>
                                     <button class="approve-btn" data-request-id="<?php echo $row['request_id']; ?>">Approve</button>
                                     <button class="reject-btn" data-request-id="<?php echo $row['request_id']; ?>">Reject</button>
+                                <?php elseif ($row['status'] === 'Released'): ?>
+                                    <button class="return-btn" data-request-id="<?php echo $row['request_id']; ?>">Return</button>
                                 <?php else: ?>
                                     <span class="processed-label">Processed</span>
                                 <?php endif; ?>
@@ -384,6 +413,75 @@ $result = $conn->query($query);
         </div>
     </div>
 
-    <script src="../js/Applications_Requests.js"></script>
+    <!-- Request List Modal -->
+    <div id="requestListModal" class="modal">
+        <div class="modal-content" style="width: 80%; max-width: 900px;">
+            <div class="modal-header">
+                <h3>Request Processing List</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="table-container">
+                    <table class="modal-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Item Name</th>
+                                <th>Item Type</th>
+                                <th>Quantity</th>
+                                <th>Status</th>
+                                <th>Request Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="request-list-body">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="refresh-list-btn" class="btn-primary">
+                    <i class="fas fa-sync-alt"></i> Refresh List
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Notification Modal -->
+<div id="churchNotification" class="notification-modal">
+    <div class="notification-header">
+        <div class="notification-title">
+            <div class="notification-icon">
+                <i class="fas fa-check"></i>
+            </div>
+            <span id="notificationTitle">Success</span>
+        </div>
+        <button class="notification-close"></button>
+    </div>
+    <div class="notification-body">
+        <p id="notificationMessage">Your action was successful.</p>
+    </div>
+    <div class="notification-footer">
+        <button class="notification-btn">OK</button>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="churchConfirmation" class="confirmation-modal">
+    <div class="confirmation-content">
+        <div class="confirmation-icon">
+            <i class="fas fa-question-circle"></i>
+        </div>
+        <h3 class="confirmation-title">Confirmation</h3>
+        <p class="confirmation-message" id="confirmationMessage">Are you sure you want to perform this action?</p>
+        <div class="confirmation-buttons">
+            <button class="confirmation-btn confirm" id="confirmAction">Yes</button>
+            <button class="confirmation-btn cancel" id="cancelAction">Cancel</button>
+        </div>
+    </div>
+</div>
+
+    <script src="../js/Application_Reqs.js"></script>
 </body>
 </html>
