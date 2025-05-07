@@ -194,9 +194,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
         exit();
     }
 
-    $stmt = $conn->prepare("SELECT item_id, item_name FROM items 
+    // Also fetch quantity when getting items
+    $stmt = $conn->prepare("SELECT item_id, item_name, quantity FROM items 
                            WHERE item_category = ? AND quantity > 0
-                           GROUP BY item_id, item_name");
+                           GROUP BY item_id, item_name, quantity");
     if (!$stmt) {
         header('Content-Type: application/json', true, 500);
         echo json_encode(['error' => 'Database error: ' . $conn->error]);
@@ -217,6 +218,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
     echo json_encode($items);
     exit();
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_id'])) {
+    $itemId = intval($_GET['item_id']);
+
+    if ($itemId <= 0) {
+        header('Content-Type: application/json', true, 400);
+        echo json_encode(['error' => 'Invalid item ID']);
+        exit();
+    }
+
+    // Get item quantity
+    $stmt = $conn->prepare("SELECT quantity FROM items WHERE item_id = ?");
+    if (!$stmt) {
+        header('Content-Type: application/json', true, 500);
+        echo json_encode(['error' => 'Database error: ' . $conn->error]);
+        exit();
+    }
+    
+    $stmt->bind_param("i", $itemId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $itemData = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$itemData) {
+        header('Content-Type: application/json', true, 404);
+        echo json_encode(['error' => 'Item not found']);
+        exit();
+    }
+
+    // Get reserved quantity
+    $reservedCheck = $conn->prepare("SELECT SUM(quantity) AS reserved FROM borrow_requests 
+                                   WHERE item_id = ? AND status = 'Approved'");
+    $reservedCheck->bind_param("i", $itemId);
+    $reservedCheck->execute();
+    $reservedResult = $reservedCheck->get_result();
+    $reservedData = $reservedResult->fetch_assoc();
+    $reservedCheck->close();
+
+    $availableQty = $itemData['quantity'];
+    $reservedQty = $reservedData['reserved'] ?? 0;
+    $actuallyAvailable = $availableQty - $reservedQty;
+
+    header('Content-Type: application/json');
+    echo json_encode([
+        'available' => $actuallyAvailable,
+        'total_quantity' => $availableQty,
+        'reserved' => $reservedQty
+    ]);
+    exit();
+}
 ?>
 
 <!DOCTYPE html>
@@ -226,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="UCGS Inventory Management System - New Item Request">
     <title>UCGS Inventory | Borrow Request</title>
-    <link rel="stylesheet" href="../css/UserItemBorrowed.css">
+    <link rel="stylesheet" href="../css/UsersItemborrow.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
           integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" 
           crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -358,12 +410,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label for="quantity">Quantity:</label>
-                        <input type="number" id="quantity" name="quantity" 
-                               min="1" required placeholder="Enter quantity">
-                    </div>
-                </div>
+    <div class="form-group">
+        <label for="quantity">Quantity: <span id="available-quantity" class="available-quantity"></span></label>
+        <input type="number" id="quantity" name="quantity" 
+               min="1" required placeholder="Enter quantity">
+    </div>
+</div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -440,6 +492,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
     </div>
 </div>
 
-    <script src="../js/userItemsborroweds.js"></script>
+
+
+    <script src="../js/UsersItemborrow.js"></script>
 </body>
 </html>

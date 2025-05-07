@@ -48,6 +48,60 @@ document.addEventListener("DOMContentLoaded", function () {
 
     //////////////////////// EVENT LISTENERS ////////////////////////
     
+    //////////////////////// SHOW AVAILABILITY ////////////////////////
+    itemDropdown.addEventListener("change", function() {
+        const itemId = this.value;
+        const availableSpan = document.getElementById('available-quantity');
+        const quantityInput = document.getElementById('quantity');
+        
+        // Clear previous values
+        availableSpan.textContent = '';
+        quantityInput.placeholder = 'Enter quantity';
+        quantityInput.removeAttribute('max');
+        quantityInput.value = '';
+        
+        if (!itemId) return;
+    
+        fetch(`UserItemBorrow.php?item_id=${itemId}`)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+                
+                // Update the availability display
+                availableSpan.textContent = `${data.available} Available`;
+                
+                // Set the max attribute and update placeholder
+                quantityInput.max = data.available;
+                quantityInput.placeholder = `Max: ${data.available}`;
+                
+                // Add validation to prevent typing more than available
+                quantityInput.addEventListener('input', function() {
+                    if (parseInt(this.value) > parseInt(this.max)) {
+                        this.value = this.max;
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching item availability:', error);
+            });
+    });
+    
+    // Update the form reset handler to clear everything
+    resetBtn.addEventListener("click", function() {
+        itemDropdown.innerHTML = '<option value="" disabled selected>Select an Item</option>';
+        document.getElementById('available-quantity').textContent = '';
+        const quantityInput = document.getElementById('quantity');
+        quantityInput.placeholder = 'Enter quantity';
+        quantityInput.removeAttribute('max');
+        quantityInput.value = '';
+    });
+
     //////////////////////// DROPDOWN FUNCTIONALITY ////////////////////////
     dropdownArrows.forEach(arrow => {
         arrow.addEventListener("click", function (event) {
@@ -290,6 +344,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const itemName = document.querySelector('#item-id option:checked').textContent;
         const itemCategory = formData.get('item_category');
         const quantity = parseInt(formData.get('quantity'));
+        const maxQuantity = parseInt(document.getElementById('quantity').max) || 0;
         const dateNeeded = formData.get('date_needed');
         const returnDate = formData.get('return_date');
         const purpose = formData.get('purpose');
@@ -301,6 +356,11 @@ document.addEventListener("DOMContentLoaded", function () {
         
         if (quantity <= 0) {
             showModal('Quantity must be greater than 0.', true);
+            return;
+        }
+        
+        if (quantity > maxQuantity) {
+            showModal(`You cannot request more than ${maxQuantity} items (available quantity).`, true);
             return;
         }
         
@@ -338,12 +398,18 @@ document.addEventListener("DOMContentLoaded", function () {
         const itemName = document.querySelector('#item-id option:checked').textContent;
         const itemCategory = formData.get('item_category');
         const quantity = parseInt(formData.get('quantity'));
+        const maxQuantity = parseInt(document.getElementById('quantity').max) || 0;
         const dateNeeded = formData.get('date_needed');
         const returnDate = formData.get('return_date');
         const purpose = formData.get('purpose');
         
         if (!itemId || !itemName || !itemCategory || !quantity || !dateNeeded || !returnDate || !purpose) {
             showModal('Please fill all required fields.', true);
+            return;
+        }
+        
+        if (quantity > maxQuantity) {
+            showModal(`You cannot request more than ${maxQuantity} items (available quantity).`, true);
             return;
         }
         
@@ -460,3 +526,4 @@ document.addEventListener("DOMContentLoaded", function () {
         itemDropdown.appendChild(option);
     }
 });
+
