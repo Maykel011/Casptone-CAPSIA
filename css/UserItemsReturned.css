@@ -496,10 +496,18 @@ body {
     color: white;
 }
 
-.inventory-table th,
+.inventory-table th {
+    padding: 12px 15px;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+    word-wrap: break-word;
+    white-space: nowrap;
+}
+
+
 .inventory-table td {
     padding: 12px 15px;
-    text-align: left;
+    text-align: center;
     border-bottom: 1px solid #ddd;
     word-wrap: break-word;
     white-space: nowrap;
@@ -1104,4 +1112,34 @@ body {
     .modal-buttons button {
         width: 100%;
     }
+}
+
+/* Add these styles */
+.status-cell.pending {
+    color: #ff9800;
+    font-weight: bold;
+}
+
+.pending-label {
+    color: #ff9800;
+    font-style: italic;
+}
+
+.success-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #4caf50;
+    color: white;
+    padding: 15px;
+    border-radius: 4px;
+    z-index: 1000;
+    animation: fadeInOut 3s ease-in-out;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-20px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
 }

@@ -88,17 +88,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         exit();
     }
     // Release action - for changing status from For Releasing to Released
-    elseif ($_POST['action'] === 'release') {
-        $requestId = intval($_POST['request_id']);
+  // In the 'release' action section, remove the item_returns insertion
+elseif ($_POST['action'] === 'release') {
+    $requestId = intval($_POST['request_id']);
 
+    // Start transaction
+    $conn->begin_transaction();
+
+    try {
+        // Update the borrow request status to Released
         $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Released', processed_at = NOW() WHERE borrow_id = ?");
         $stmt->bind_param("i", $requestId);
-        $success = $stmt->execute();
+        $stmt->execute();
         $stmt->close();
 
-        echo json_encode(['success' => $success]);
-        exit();
+        // Commit transaction
+        $conn->commit();
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        // Rollback transaction if any error occurs
+        $conn->rollback();
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
+    exit();
+}
+    
     // Reject action
     elseif ($_POST['action'] === 'reject') {
         $requestId = intval($_POST['request_id']);
@@ -122,31 +136,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     // Return action
     elseif ($_POST['action'] === 'return') {
         $requestId = intval($_POST['request_id']);
-
+    
         // Start transaction
         $conn->begin_transaction();
-
+    
         try {
             // Get the request details first
-            $checkStmt = $conn->prepare("SELECT item_id, quantity FROM borrow_requests WHERE borrow_id = ?");
+            $checkStmt = $conn->prepare("SELECT br.item_id, br.quantity, ir.return_id 
+                                       FROM borrow_requests br
+                                       JOIN item_returns ir ON br.item_id = ir.item_id AND br.user_id = ir.user_id
+                                       WHERE br.borrow_id = ? AND br.status = 'Return Pending'");
             $checkStmt->bind_param("i", $requestId);
             $checkStmt->execute();
             $result = $checkStmt->get_result();
             $request = $result->fetch_assoc();
             $checkStmt->close();
-
+    
+            if (!$request) {
+                throw new Exception('No pending return request found for this item');
+            }
+    
             // Update the borrow request status
             $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Returned', processed_at = NOW() WHERE borrow_id = ?");
             $stmt->bind_param("i", $requestId);
             $stmt->execute();
             $stmt->close();
-
+    
+            // Update the item_return status
+            $updateReturnStmt = $conn->prepare("UPDATE item_returns SET status = 'Completed' WHERE return_id = ?");
+            $updateReturnStmt->bind_param("i", $request['return_id']);
+            $updateReturnStmt->execute();
+            $updateReturnStmt->close();
+    
             // Update item availability
             $updateItemStmt = $conn->prepare("UPDATE items SET availability = availability + ? WHERE item_id = ?");
             $updateItemStmt->bind_param("ii", $request['quantity'], $request['item_id']);
             $updateItemStmt->execute();
             $updateItemStmt->close();
-
+    
             $conn->commit();
             echo json_encode(['success' => true]);
         } catch (Exception $e) {
@@ -154,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         exit();
-    } 
+    }
     // Get requests for modal
     elseif ($_POST['action'] === 'get_requests') {
         $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_category, 
@@ -162,38 +189,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                  FROM borrow_requests br 
                  JOIN users u ON br.user_id = u.user_id
                  JOIN items i ON br.item_id = i.item_id
-                 WHERE br.status IN ('For Checking', 'For Releasing', 'Released')
+                 WHERE br.status IN ('For Checking', 'For Releasing', 'Released', 'Return Pending')
                  ORDER BY br.request_date DESC";
         $result = $conn->query($query);
-
+    
         $rows = [];
         while ($row = $result->fetch_assoc()) {
             $rows[] = $row;
         }
-
+    
         echo json_encode(['success' => true, 'requests' => $rows]);
         exit();
     }
+    
     // Refresh action
-    elseif ($_POST['action'] === 'refresh') {
-        $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_category,
-                br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
-                br.status, br.request_date, br.processed_at, br.rejection_reason
-                FROM borrow_requests br 
-                JOIN users u ON br.user_id = u.user_id
-                JOIN items i ON br.item_id = i.item_id
-                WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned', 'For Checking', 'For Releasing', 'Released')
-                ORDER BY br.request_date DESC";
-        $result = $conn->query($query);
+// In the refresh action section, modify the query to include Return Pending status
+elseif ($_POST['action'] === 'refresh') {
+    $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_category,
+            br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
+            br.status, br.request_date, br.processed_at, br.rejection_reason
+            FROM borrow_requests br 
+            JOIN users u ON br.user_id = u.user_id
+            JOIN items i ON br.item_id = i.item_id
+            WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned', 'For Checking', 'For Releasing', 'Released', 'Return Pending')
+            ORDER BY br.request_date DESC";
+    $result = $conn->query($query);
 
-        $rows = [];
-        while ($row = $result->fetch_assoc()) {
-            $rows[] = $row;
-        }
-
-        echo json_encode(['rows' => $rows]);
-        exit();
+    $rows = [];
+    while ($row = $result->fetch_assoc()) {
+        $rows[] = $row;
     }
+
+    echo json_encode(['rows' => $rows]);
+    exit();
+}
 }
 
 // Regular page load
@@ -217,14 +246,14 @@ if (empty($accountName)) {
 $accountName = htmlspecialchars($accountName);
 $accountRole = 'Administrator';
 
-// Fetch initial data
+// In the regular page load section
 $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_category,
-                br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
-                br.status, br.request_date, br.processed_at, br.rejection_reason
+        br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
+        br.status, br.request_date, br.processed_at, br.rejection_reason
         FROM borrow_requests br 
         JOIN users u ON br.user_id = u.user_id
         JOIN items i ON br.item_id = i.item_id
-        WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned', 'For Checking', 'For Releasing', 'Released')
+        WHERE br.status IN ('Pending', 'Approved', 'Rejected', 'Returned', 'For Checking', 'For Releasing', 'Released', 'Return Pending')
         ORDER BY br.request_date DESC";
 $result = $conn->query($query);
 ?>
@@ -236,7 +265,7 @@ $result = $conn->query($query);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Application Request</title>
-    <link rel="stylesheet" href="../css/Application_Reqs.css">
+    <link rel="stylesheet" href="../css/Applications_Request.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
@@ -482,6 +511,6 @@ $result = $conn->query($query);
     </div>
 </div>
 
-    <script src="../js/Application_Reqs.js"></script>
+    <script src="../js/Applications_Request.js"></script>
 </body>
 </html>

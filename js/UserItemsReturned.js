@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function showPage(page) {
         if (filteredRows.length === 0) {
-            tableBody.innerHTML = "<tr><td colspan='6'>No results found</td></tr>";
+            tableBody.innerHTML = "<tr><td colspan='8'>No results found</td></tr>";
             document.getElementById("page-number").innerText = "No results";
             document.getElementById("prev-btn").disabled = true;
             document.getElementById("next-btn").disabled = true;
@@ -235,6 +235,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     
     // Form submission with validation
+   // In the form submission handler
 returnForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -257,30 +258,35 @@ returnForm.addEventListener('submit', async function(e) {
             }
         });
         
-        const text = await response.text();
-        let data;
+        const data = await response.json();
         
-        try {
-            data = JSON.parse(text);
-        } catch (e) {
-            console.error('Invalid JSON response:', text);
-            throw new Error('Server returned an invalid response. Please try again.');
-        }
-        
-        if (!data || typeof data.success === 'undefined') {
-            throw new Error('Invalid response format from server');
-        }
-        
-        if (data.success) {
-            alert(data.message);
-            returnModal.style.display = 'none';
-            location.reload();
-        } else {
+        if (!data.success) {
             throw new Error(data.message || 'Request failed');
+        }
+        
+        // Show success message
+        showChurchNotification(data.message, 'success');
+        
+        // Close modal
+        returnModal.style.display = 'none';
+        
+        // Update the row to show pending status
+        const itemId = formData.get('item_id');
+        const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+        if (row) {
+            row.querySelector('.status-cell').textContent = 'Pending Admin Confirmation';
+            row.querySelector('.status-cell').className = 'status-cell pending';
+            row.querySelector('td:last-child').innerHTML = '<span class="pending-label">Processing Return</span>';
+            
+            // Disable the condition dropdown
+            const conditionDropdown = row.querySelector('.condition-dropdown');
+            if (conditionDropdown) {
+                conditionDropdown.disabled = true;
+            }
         }
     } catch (error) {
         console.error('Error:', error);
-        alert(error.message);
+        showChurchNotification(error.message, 'error');
     }
-});
+}); 
 });

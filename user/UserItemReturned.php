@@ -1,6 +1,4 @@
 <?php
-
-
 // Start session and set headers
 session_start();
 header('Content-Type: text/html; charset=UTF-8');
@@ -19,6 +17,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Handle AJAX requests
+// In the AJAX handler section
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
     strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
     
@@ -48,6 +47,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
         // Start transaction
         $conn->begin_transaction();
 
+        // Check if return request already exists
+        $checkStmt = $conn->prepare("SELECT return_id FROM item_returns 
+                                    WHERE item_id = ? AND user_id = ? AND status = 'Pending'");
+        $checkStmt->bind_param("ii", $item_id, $user_id);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        $checkStmt->close();
+
+        if ($checkResult->num_rows > 0) {
+            throw new Exception('You already have a pending return request for this item');
+        }
+
         // Insert return record
         $stmt = $conn->prepare("INSERT INTO item_returns 
                               (user_id, item_id, category, quantity, return_date, item_condition, notes, status) 
@@ -58,11 +69,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             throw new Exception('Failed to create return record');
         }
 
-        // Update borrow request status
-        $updateStmt = $conn->prepare("UPDATE borrow_requests 
-                                    SET status = 'Returned' 
-                                    WHERE item_id = ? AND user_id = ? AND status = 'Approved'");
-        $updateStmt->bind_param("ii", $item_id, $user_id);
+        // Update borrow request status to 'Return Pending'
+      // In the AJAX handler
+$updateStmt = $conn->prepare("UPDATE borrow_requests 
+SET status = 'Return Pending' 
+WHERE item_id = ? AND user_id = ? AND status = 'Released'");
+$updateStmt->bind_param("ii", $item_id, $user_id);
         
         if (!$updateStmt->execute()) {
             throw new Exception('Failed to update borrow request');
@@ -85,9 +97,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
     exit();
 }
 
-// Fetch approved borrow requests for the current user
-$stmt = $conn->prepare("SELECT * FROM borrow_requests 
-                       WHERE status = 'Approved' AND user_id = ?");
+// Fetch approved and released borrow requests for the current user
+$stmt = $conn->prepare("SELECT br.*, ir.status as return_status, ir.notes as return_notes, ir.item_condition as actual_condition
+                       FROM borrow_requests br
+                       LEFT JOIN item_returns ir ON br.item_id = ir.item_id AND br.user_id = ir.user_id
+                       WHERE (br.status = 'Released' OR br.status = 'Return Pending') 
+                       AND br.user_id = ?
+                       ORDER BY br.request_date DESC");
 $stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -108,7 +124,7 @@ $accountName = $user['username'] ?? 'Guest';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="UCGS Inventory Management System - User Transactions">
     <title>UCGS Inventory | User Item Returned</title>
-    <link rel="stylesheet" href="../css/UserItemReturned.css">
+    <link rel="stylesheet" href="../css/UserItemsReturned.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
           integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" 
           crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -175,6 +191,8 @@ $accountName = $user['username'] ?? 'Guest';
                     <th>Quantity</th>
                     <th>Request Date</th>
                     <th>Return Date</th>
+                    <th>Status</th>
+                    <th>Admin Notes</th>
                     <th>Condition</th>
                     <th>Actions</th>
                 </tr>
@@ -186,17 +204,39 @@ $accountName = $user['username'] ?? 'Guest';
         <td><?php echo htmlspecialchars($row['quantity']); ?></td>
         <td><?php echo htmlspecialchars($row['request_date']); ?></td>
         <td><?php echo htmlspecialchars($row['return_date']); ?></td>
-        <td>
-            <select class="condition-dropdown" onchange="handleConditionChange(this)">
-                <option value="Good">Good</option>
-                <option value="Damaged">Damaged</option>
-                <option value="Lost">Lost</option>
-                <option value="Other">Other (specify)</option>
-            </select>
-            <input type="text" class="condition-input" style="display: none; margin-top: 5px;" 
-                   placeholder="Specify condition" oninput="updateCondition(this)">
+        <td class="status-cell <?php echo strtolower(str_replace(' ', '-', $row['return_status'] ?? 'pending')); ?>">
+            <?php 
+            if ($row['status'] === 'Return Pending') {
+                echo 'Waiting for Admin Confirmation';
+            } else {
+                echo htmlspecialchars($row['return_status'] ?? 'Not Returned'); 
+            }
+            ?>
         </td>
-        <td><button class="return-item-btn">Return Item</button></td>
+        <td><?php echo htmlspecialchars($row['return_notes'] ?? 'N/A'); ?></td>
+        <td>
+            <?php if ($row['status'] === 'Released'): ?>
+                <select class="condition-dropdown" onchange="handleConditionChange(this)">
+                    <option value="Good">Good</option>
+                    <option value="Damaged">Damaged</option>
+                    <option value="Lost">Lost</option>
+                    <option value="Other">Other (specify)</option>
+                </select>
+                <input type="text" class="condition-input" style="display: none; margin-top: 5px;" 
+                       placeholder="Specify condition" oninput="updateCondition(this)">
+            <?php else: ?>
+                <?php echo htmlspecialchars($row['actual_condition'] ?? 'N/A'); ?>
+            <?php endif; ?>
+        </td>
+        <td>
+            <?php if ($row['status'] === 'Released'): ?>
+                <button class="return-item-btn">Return Item</button>
+            <?php elseif ($row['status'] === 'Return Pending'): ?>
+                <span class="pending-label">Processing Return</span>
+            <?php else: ?>
+                <span class="processed-label">Completed</span>
+            <?php endif; ?>
+        </td>
     </tr>
     <?php endwhile; ?>
 </tbody>
@@ -251,7 +291,7 @@ $accountName = $user['username'] ?? 'Guest';
         </div>
     </div>
 
-<script src="../js/usersreturns.js"></script>
+<script src="../js/UserItemsReturned.js"></script>
 
 
 </body>

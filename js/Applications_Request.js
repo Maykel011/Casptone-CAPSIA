@@ -258,15 +258,18 @@ document.addEventListener("DOMContentLoaded", function () {
                         hour12: true
                     }) : '';
                     
-                    if (request.status === "For Checking") {
-                        statusTd.innerHTML = `<span class="status-checking">${request.status}</span>`;
-                    } else if (request.status === "For Releasing") {
-                        statusTd.innerHTML = `<span class="status-releasing">${request.status}</span>`;
-                    } else if (request.status === "Released") {
-                        statusTd.innerHTML = `<span class="status-released">${request.status}</span>`;
-                    } else {
-                        statusTd.textContent = request.status;
-                    }
+                    // In the same loadRequestList function, update the status display
+if (request.status === "For Checking") {
+    statusTd.innerHTML = `<span class="status-checking">${request.status}</span>`;
+} else if (request.status === "For Releasing") {
+    statusTd.innerHTML = `<span class="status-releasing">${request.status}</span>`;
+} else if (request.status === "Released") {
+    statusTd.innerHTML = `<span class="status-released">${request.status}</span>`;
+} else if (request.status === "Return Pending") {
+    statusTd.innerHTML = `<span class="status-pending">${request.status}</span>`;
+} else {
+    statusTd.textContent = request.status;
+}
                     
                     if (processedTime) {
                         statusTd.innerHTML += `<span class="processed-time">${processedTime}</span>`;
@@ -283,27 +286,28 @@ document.addEventListener("DOMContentLoaded", function () {
                     const actionsTd = document.createElement("td");
                     actionsTd.className = "action-cell";
                     
-                    if (request.status === "For Checking") {
-                        const processBtn = document.createElement("button");
-                        processBtn.className = "process-btn";
-                        processBtn.setAttribute("data-request-id", request.request_id);
-                        processBtn.innerHTML = '<i class="fas fa-cog"></i> Process';
-                        actionsTd.appendChild(processBtn);
-                    } else if (request.status === "For Releasing") {
-                        const releaseBtn = document.createElement("button");
-                        releaseBtn.className = "release-btn";
-                        releaseBtn.setAttribute("data-request-id", request.request_id);
-                        releaseBtn.innerHTML = '<i class="fas fa-check-circle"></i> Release';
-                        actionsTd.appendChild(releaseBtn);
-                    } else if (request.status === "Released") {
-                        const returnBtn = document.createElement("button");
-                        returnBtn.className = "return-btn";
-                        returnBtn.setAttribute("data-request-id", request.request_id);
-                        returnBtn.innerHTML = '<i class="fas fa-undo"></i> Return';
-                        actionsTd.appendChild(returnBtn);
-                    } else {
-                        actionsTd.textContent = "No action";
-                    }
+                    // In the loadRequestList function, update the actions section
+if (request.status === "For Checking") {
+    const processBtn = document.createElement("button");
+    processBtn.className = "process-btn";
+    processBtn.setAttribute("data-request-id", request.request_id);
+    processBtn.innerHTML = '<i class="fas fa-cog"></i> Process';
+    actionsTd.appendChild(processBtn);
+} else if (request.status === "For Releasing") {
+    const releaseBtn = document.createElement("button");
+    releaseBtn.className = "release-btn";
+    releaseBtn.setAttribute("data-request-id", request.request_id);
+    releaseBtn.innerHTML = '<i class="fas fa-check-circle"></i> Release';
+    actionsTd.appendChild(releaseBtn);
+} else if (request.status === "Released" || request.status === "Return Pending") {
+    const returnBtn = document.createElement("button");
+    returnBtn.className = "return-btn";
+    returnBtn.setAttribute("data-request-id", request.request_id);
+    returnBtn.innerHTML = '<i class="fas fa-undo"></i> Return';
+    actionsTd.appendChild(returnBtn);
+} else {
+    actionsTd.textContent = "No action";
+}
                     
                     tr.appendChild(actionsTd);
                     requestListBody.appendChild(tr);
@@ -480,7 +484,7 @@ async function handleRelease(event) {
 
 async function handleReturn(event) {
     const requestId = this.getAttribute("data-request-id");
-    const confirmed = await showChurchConfirmation("Are you sure this item has been returned?");
+    const confirmed = await showChurchConfirmation("Are you sure you want to confirm this return?");
     
     if (confirmed) {
         fetch("Application_Request.php", {
@@ -495,14 +499,14 @@ async function handleReturn(event) {
             if (data.success) {
                 loadRequestList();
                 refreshTable();
-                showChurchNotification("Item marked as returned", "success");
+                showChurchNotification("Return confirmed successfully", "success");
             } else {
-                showChurchNotification("Error marking item as returned", "error");
+                showChurchNotification(data.error || "Error confirming return", "error");
             }
         })
         .catch(error => {
             console.error("Error:", error);
-            showChurchNotification("An error occurred", "error");
+            showChurchNotification("An error occurred while confirming return", "error");
         });
     }
 }
@@ -514,130 +518,167 @@ function handleReject(event) {
     rejectionReason.focus();
 }
 
-    // ====================
-    // REFRESH TABLE FUNCTION
-    // ====================
-    async function refreshTable() {
-        try {
-            const response = await fetch("Application_Request.php", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: "action=refresh"
+// ====================
+// REFRESH TABLE FUNCTION
+// ====================
+async function refreshTable() {
+    try {
+        const response = await fetch("Application_Request.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "action=refresh"
+        });
+        
+        // Check if response is OK
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Check if data is valid
+        if (!data || !Array.isArray(data.rows)) {
+            throw new Error("Invalid data received from server");
+        }
+        
+        // Get or create table body element
+        const tableBody = document.querySelector("#requestsTable tbody") || 
+                          document.createElement("tbody");
+        if (!document.querySelector("#requestsTable tbody")) {
+            document.querySelector("#requestsTable").appendChild(tableBody);
+        }
+        
+        // Clear existing rows
+        tableBody.innerHTML = "";
+        
+        // Handle empty data case
+        if (data.rows.length === 0) {
+            const tr = document.createElement("tr");
+            tr.className = "no-results";
+            const td = document.createElement("td");
+            td.colSpan = 11;
+            td.textContent = "No requests found";
+            tr.appendChild(td);
+            tableBody.appendChild(tr);
+            return;
+        }
+        
+        // Process each row
+        data.rows.forEach(row => {
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-request-id", row.request_id);
+            
+            // Create cells
+            const cells = [
+                row.username || '',
+                row.item_name || '',
+                row.item_category || '',
+                row.date_needed || '',
+                row.return_date || '',
+                row.quantity || '',
+                row.purpose || '',
+                row.notes || '',
+                "", // Status cell
+                row.request_date || '',
+                ""  // Action cell
+            ];
+            
+            cells.forEach((cellContent, index) => {
+                const td = document.createElement("td");
+                
+                if (index === 8) { // Status cell
+                    const status = row.status || 'Pending';
+                    const statusClass = status.toLowerCase().replace(' ', '-');
+                    td.className = `status-cell ${statusClass}`;
+                    
+                    const processedTime = row.processed_at ? new Date(row.processed_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    }) : '';
+                    
+                    // Status handling
+                    if (status === "Approved") {
+                        td.innerHTML = `<span class="status-approved" title="Approved on ${processedTime}">Approved</span><span class="processed-time">${processedTime}</span>`;
+                    } else if (status === "Rejected") {
+                        td.innerHTML = `<span class="status-rejected" title="Rejected on ${processedTime}">Rejected</span><span class="processed-time">${processedTime}</span>`;
+                        if (row.rejection_reason) {
+                            td.innerHTML += `<div class="rejection-reason">${row.rejection_reason}</div>`;
+                        }
+                    } else if (status === "Returned") {
+                        td.innerHTML = `<span class="status-returned" title="Returned on ${processedTime}">Returned</span><span class="processed-time">${processedTime}</span>`;
+                    } else if (status === "For Checking") {
+                        td.innerHTML = `<span class="status-checking" title="For Checking since ${processedTime}">For Checking</span><span class="processed-time">${processedTime}</span>`;
+                    } else if (status === "For Releasing") {
+                        td.innerHTML = `<span class="status-releasing" title="For Releasing since ${processedTime}">For Releasing</span><span class="processed-time">${processedTime}</span>`;
+                    } else if (status === "Return Pending") {
+                        td.innerHTML = `<span class="status-pending" title="Return Pending since ${processedTime}">Return Pending</span><span class="processed-time">${processedTime}</span>`;
+                    } else if (status === "Released") {
+                        td.innerHTML = `<span class="status-released" title="Released on ${processedTime}">Released</span><span class="processed-time">${processedTime}</span>`;
+                    } else {
+                        td.innerHTML = `<span title="Pending approval">${status}</span>`;
+                    }
+                    
+                    tr.setAttribute("data-status", status);
+                    
+                } else if (index === 10) { // Action cell
+                    td.className = "action-cell";
+                    const status = row.status || 'Pending';
+                    
+                    if (status === "Pending") {
+                        const approveBtn = document.createElement("button");
+                        approveBtn.className = "approve-btn";
+                        approveBtn.setAttribute("data-request-id", row.request_id);
+                        approveBtn.textContent = "Approve";
+                        
+                        const rejectBtn = document.createElement("button");
+                        rejectBtn.className = "reject-btn";
+                        rejectBtn.setAttribute("data-request-id", row.request_id);
+                        rejectBtn.textContent = "Reject";
+                        
+                        td.appendChild(approveBtn);
+                        td.appendChild(rejectBtn);
+                    } else if (status === "Released") {
+                        const returnBtn = document.createElement("button");
+                        returnBtn.className = "return-btn";
+                        returnBtn.setAttribute("data-request-id", row.request_id);
+                        returnBtn.textContent = "Return";
+                        td.appendChild(returnBtn);
+                    } else {
+                        const span = document.createElement("span");
+                        span.className = "processed-label";
+                        span.textContent = "Processed";
+                        td.appendChild(span);
+                    }
+                } else {
+                    td.textContent = cellContent;
+                }
+                
+                tr.appendChild(td);
             });
             
-            const data = await response.json();
-            
-            if (data.rows && data.rows.length > 0) {
-                tableBody.innerHTML = "";
-                
-                data.rows.forEach(row => {
-                    const tr = document.createElement("tr");
-                    tr.setAttribute("data-request-id", row.request_id);
-                    
-                    // Create all table cells
-                    const cells = [
-                        row.username,
-                        row.item_name,
-                        row.item_category,
-                        row.date_needed,
-                        row.return_date,
-                        row.quantity,
-                        row.purpose,
-                        row.notes,
-                        "", // Status cell will be handled separately
-                        row.request_date,
-                        ""  // Action cell will be handled separately
-                    ];
-                    
-                    cells.forEach((cellContent, index) => {
-                        const td = document.createElement("td");
-                        if (index === 8) { // Status cell
-                            const statusClass = row.status.toLowerCase().replace(' ', '-');
-                            td.className = `status-cell ${statusClass}`;
-                            
-                            const processedTime = row.processed_at ? new Date(row.processed_at).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
-                            }) : '';
-                            
-                            if (row.status === "Approved") {
-                                td.innerHTML = `<span class="status-approved" title="Approved on ${processedTime}">Approved</span><span class="processed-time">${processedTime}</span>`;
-                                tr.setAttribute("data-status", "Approved");
-                            } else if (row.status === "Rejected") {
-                                td.innerHTML = `<span class="status-rejected" title="Rejected on ${processedTime}">Rejected</span><span class="processed-time">${processedTime}</span>`;
-                                if (row.rejection_reason) {
-                                    td.innerHTML += `<div class="rejection-reason">${row.rejection_reason}</div>`;
-                                }
-                                tr.setAttribute("data-status", "Rejected");
-                            } else if (row.status === "Returned") {
-                                td.innerHTML = `<span class="status-returned" title="Returned on ${processedTime}">Returned</span><span class="processed-time">${processedTime}</span>`;
-                                tr.setAttribute("data-status", "Returned");
-                            } else if (row.status === "For Checking") {
-                                td.innerHTML = `<span class="status-checking" title="For Checking since ${processedTime}">For Checking</span><span class="processed-time">${processedTime}</span>`;
-                                tr.setAttribute("data-status", "For Checking");
-                            } else if (row.status === "For Releasing") {
-                                td.innerHTML = `<span class="status-releasing" title="For Releasing since ${processedTime}">For Releasing</span><span class="processed-time">${processedTime}</span>`;
-                                tr.setAttribute("data-status", "For Releasing");
-                            } else if (row.status === "Released") {
-                                td.innerHTML = `<span class="status-released" title="Released on ${processedTime}">Released</span><span class="processed-time">${processedTime}</span>`;
-                                tr.setAttribute("data-status", "Released");
-                            } else {
-                                td.innerHTML = `<span title="Pending approval">${row.status}</span>`;
-                                tr.setAttribute("data-status", row.status);
-                            }
-                        } else if (index === 10) { // Action cell
-                            td.className = "action-cell";
-                            if (row.status === "Pending") {
-                                const approveBtn = document.createElement("button");
-                                approveBtn.className = "approve-btn";
-                                approveBtn.setAttribute("data-request-id", row.request_id);
-                                approveBtn.textContent = "Approve";
-                                
-                                const rejectBtn = document.createElement("button");
-                                rejectBtn.className = "reject-btn";
-                                rejectBtn.setAttribute("data-request-id", row.request_id);
-                                rejectBtn.textContent = "Reject";
-                                
-                                td.appendChild(approveBtn);
-                                td.appendChild(rejectBtn);
-                            } else if (row.status === "Released") {
-                                const returnBtn = document.createElement("button");
-                                returnBtn.className = "return-btn";
-                                returnBtn.setAttribute("data-request-id", row.request_id);
-                                returnBtn.textContent = "Return";
-                                td.appendChild(returnBtn);
-                            } else {
-                                const span = document.createElement("span");
-                                span.className = "processed-label";
-                                span.textContent = "Processed";
-                                td.appendChild(span);
-                            }
-                        } else {
-                            td.textContent = cellContent;
-                        }
-                        tr.appendChild(td);
-                    });
-                    
-                    tableBody.appendChild(tr);
-                });
-                
-                // Reinitialize rows and filteredRows
-                rows = Array.from(tableBody.querySelectorAll("tr:not(.no-results)"));
-                filteredRows = [...rows];
-                totalPages = Math.ceil(filteredRows.length / rowsPerPage);
-                showPage(currentPage);
-            }
-        } catch (error) {
-            console.error("Error refreshing table:", error);
+            tableBody.appendChild(tr);
+        });
+        
+        // Initialize pagination if those functions exist
+        if (typeof initPagination === 'function') {
+            initPagination();
+        }
+        
+    } catch (error) {
+        console.error("Error refreshing table:", error);
+        if (typeof showNotification === 'function') {
             showNotification("Error refreshing table data", "error");
+        } else {
+            alert("Error refreshing table data: " + error.message);
         }
     }
+}
 
     // ====================
     // EVENT LISTENERS

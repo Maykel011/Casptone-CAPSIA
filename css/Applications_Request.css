@@ -1307,3 +1307,8 @@
         transform: translateY(0);
     }
 }
+
+.status-pending {
+    color: #ff9800;
+    font-weight: bold;
+}
