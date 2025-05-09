@@ -1143,3 +1143,31 @@ body {
     90% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-20px); }
 }
+
+/* Notification Popup */
+.notification-popup {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 5px;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    max-width: 300px;
+}
+
+.notification-popup.show {
+    opacity: 1;
+}
+
+.notification-popup.success {
+    background-color: #4CAF50;
+}
+
+.notification-popup.error {
+    background-color: #f44336;
+}

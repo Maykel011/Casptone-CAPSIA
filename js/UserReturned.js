@@ -235,7 +235,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     
     // Form submission with validation
-   // In the form submission handler
+ // Form submission with validation
 returnForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -264,8 +264,8 @@ returnForm.addEventListener('submit', async function(e) {
             throw new Error(data.message || 'Request failed');
         }
         
-        // Show success message
-        showChurchNotification(data.message, 'success');
+        // Show success notification
+        showNotification(data.message, 'success');
         
         // Close modal
         returnModal.style.display = 'none';
@@ -274,7 +274,7 @@ returnForm.addEventListener('submit', async function(e) {
         const itemId = formData.get('item_id');
         const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
         if (row) {
-            row.querySelector('.status-cell').textContent = 'Pending Admin Confirmation';
+            row.querySelector('.status-cell').textContent = 'Waiting for Admin Confirmation';
             row.querySelector('.status-cell').className = 'status-cell pending';
             row.querySelector('td:last-child').innerHTML = '<span class="pending-label">Processing Return</span>';
             
@@ -286,7 +286,19 @@ returnForm.addEventListener('submit', async function(e) {
         }
     } catch (error) {
         console.error('Error:', error);
-        showChurchNotification(error.message, 'error');
+        showNotification(error.message, 'error');
     }
-}); 
+});
+
+// Notification function
+function showNotification(message, type) {
+    const notification = document.getElementById('notificationPopup');
+    notification.textContent = message;
+    notification.className = `notification-popup ${type} show`;
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
 });

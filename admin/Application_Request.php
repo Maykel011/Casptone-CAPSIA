@@ -336,8 +336,7 @@ $result = $conn->query($query);
                 </select>
             </div>
             <button id="view-list-btn" class="btn-primary">
-                <i class="fas fa-list"></i> View List
-            </button>
+                <i class="fas fa-list"></i> Processing List </button>
         </div>
 
         <table class="item-table">
@@ -511,6 +510,6 @@ $result = $conn->query($query);
     </div>
 </div>
 
-    <script src="../js/Applications_Request.js"></script>
+    <script src="../js/Application_Reqs.js"></script>
 </body>
 </html>

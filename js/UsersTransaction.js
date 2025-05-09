@@ -41,3 +41,29 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
+
+//pagination
+function changePage(page) {
+    // Get current URL and parameters
+    const url = new URL(window.location.href);
+    
+    // Update page parameter
+    url.searchParams.set('page', page);
+    
+    // Reload page with new page number
+    window.location.href = url.toString();
+}
+
+// If using tabs with separate pagination
+document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', function() {
+        // Remove active class from all buttons and content
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        // Add active class to clicked button and corresponding content
+        this.classList.add('active');
+        const tabId = this.getAttribute('data-tab');
+        document.getElementById(tabId).classList.add('active');
+    });
+});
