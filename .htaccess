@@ -1,0 +1,28 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Force HTTPS (optional, disable if you don’t have SSL yet)
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Allow direct access to existing files and folders
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Route everything else to index.php
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Custom error pages
+ErrorDocument 403 /login/login.php?error=403
+ErrorDocument 404 /login/not-found.php
+ErrorDocument 500 /login/login.php?error=500
+
+# PHP Security and Performance Settings
+php_flag session.cookie_httponly 1
+php_flag session.cookie_secure 1
+php_flag session.use_strict_mode 1
+php_value session.gc_maxlifetime 14400
+php_value session.cookie_lifetime 14400
+php_value error_reporting E_ALL
+php_value display_errors 1
