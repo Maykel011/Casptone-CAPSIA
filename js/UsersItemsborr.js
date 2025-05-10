@@ -269,41 +269,41 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     //////////////////////// CART FUNCTIONS ////////////////////////
-    function updateCartDisplay() {
-        cartTableBody.innerHTML = '';
-        
-        if (cartItems.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="6" style="text-align: center;">Your cart is empty</td>';
-            cartTableBody.appendChild(row);
-            return;
-        }
-        
-        cartItems.forEach((item, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${item.item_name}</td>
-                <td>${item.item_category}</td>
-                <td>${item.quantity}</td>
-                <td>${item.date_needed}</td>
-                <td>${item.return_date}</td>
-                <td>
-                    <button class="remove-item-btn" data-index="${index}">
-                        <i class="fas fa-trash-alt"></i> Remove
-                    </button>
-                </td>
-            `;
-            cartTableBody.appendChild(row);
-        });
-        
-        // Add event listeners to remove buttons
-        document.querySelectorAll('.remove-item-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const index = parseInt(this.getAttribute('data-index'));
-                showConfirmation('Are you sure you want to remove this item from your cart?', 'remove', index);
-            });
-        });
+   function updateCartDisplay() {
+    cartTableBody.innerHTML = '';
+    
+    if (cartItems.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="6" style="text-align: center;">Your cart is empty</td>';
+        cartTableBody.appendChild(row);
+        return;
     }
+    
+    cartItems.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${item.item_name}</td>
+            <td>${item.item_category}</td>
+            <td>${item.quantity}</td>
+            <td>${item.date_needed}</td>
+            <td>${item.return_date}</td>
+            <td>
+                <button class="remove-item-btn" data-index="${index}">
+                    <i class="fas fa-trash-alt"></i> Remove
+                </button>
+            </td>
+        `;
+        cartTableBody.appendChild(row);
+    });
+    
+    // Add event listeners to remove buttons
+    document.querySelectorAll('.remove-item-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            handleRemoveItem(index);
+        });
+    });
+}
 
     function addToCart(itemData) {
         const existingItemIndex = cartItems.findIndex(item => 
@@ -338,59 +338,167 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     //////////////////////// FORM HANDLING FUNCTIONS ////////////////////////
-    function handleAddToCart() {
-        const formData = new FormData(requestForm);
-        const itemId = formData.get('item_id');
-        const itemName = document.querySelector('#item-id option:checked').textContent;
-        const itemCategory = formData.get('item_category');
-        const quantity = parseInt(formData.get('quantity'));
-        const maxQuantity = parseInt(document.getElementById('quantity').max) || 0;
-        const dateNeeded = formData.get('date_needed');
-        const returnDate = formData.get('return_date');
-        const purpose = formData.get('purpose');
-        
-        if (!itemId || !itemName || !itemCategory || !quantity || !dateNeeded || !returnDate || !purpose) {
-            showModal('Please fill all required fields.', true);
-            return;
-        }
-        
-        if (quantity <= 0) {
-            showModal('Quantity must be greater than 0.', true);
-            return;
-        }
-        
-        if (quantity > maxQuantity) {
-            showModal(`You cannot request more than ${maxQuantity} items (available quantity).`, true);
-            return;
-        }
-        
-        if (new Date(dateNeeded) > new Date(returnDate)) {
-            showModal('Return date must be after the date needed.', true);
-            return;
-        }
-        
-        const itemData = {
-            item_id: itemId,
-            item_name: itemName,
-            item_category: itemCategory,
-            quantity: quantity,
-            date_needed: dateNeeded,
-            return_date: returnDate,
-            purpose: purpose,
-            notes: formData.get('notes')
-        };
-        
-        if (addToCart(itemData)) {
+   function handleAddToCart() {
+    const formData = new FormData(requestForm);
+    const itemId = formData.get('item_id');
+    const itemName = document.querySelector('#item-id option:checked').textContent;
+    const itemCategory = formData.get('item_category');
+    const quantity = parseInt(formData.get('quantity'));
+    const maxQuantity = parseInt(document.getElementById('quantity').max) || 0;
+    const dateNeeded = formData.get('date_needed');
+    const returnDate = formData.get('return_date');
+    const purpose = formData.get('purpose');
+    
+    if (!itemId || !itemName || !itemCategory || !quantity || !dateNeeded || !returnDate || !purpose) {
+        showModal('Please fill all required fields.', true);
+        return;
+    }
+    
+    if (quantity <= 0) {
+        showModal('Quantity must be greater than 0.', true);
+        return;
+    }
+    
+    if (quantity > maxQuantity) {
+        showModal(`You cannot request more than ${maxQuantity} items (available quantity).`, true);
+        return;
+    }
+    
+    if (new Date(dateNeeded) > new Date(returnDate)) {
+        showModal('Return date must be after the date needed.', true);
+        return;
+    }
+    
+    const itemData = {
+        cart_action: 'add',
+        item_id: itemId,
+        item_name: itemName,
+        item_category: itemCategory,
+        quantity: quantity,
+        date_needed: dateNeeded,
+        return_date: returnDate,
+        purpose: purpose,
+        notes: formData.get('notes') || ''
+    };
+    
+    addToCartBtn.disabled = true;
+    addToCartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    
+    fetch('UserItemBorrow.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(itemData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showModal('Error: ' + data.error, true);
+        } else if (data.success) {
             showModal('Item added to cart successfully!', false);
+            cartItems = data.cart || [];
+            updateCartDisplay();
             
             const selectedCategory = requestForm.querySelector('#item-category').value;
             requestForm.reset();
             requestForm.querySelector('#item-category').value = selectedCategory;
             document.getElementById('item-id').innerHTML = '<option value="" disabled selected>Select an Item</option>';
-        } else {
-            showModal('Failed to add item to cart.', true);
         }
+    })
+    .catch(error => {
+        showModal('Failed to add item to cart: ' + error.message, true);
+    })
+    .finally(() => {
+        addToCartBtn.disabled = false;
+        addToCartBtn.textContent = 'Add to Cart';
+    });
+}
+
+// Add a function to load cart from server on page load
+function loadCartFromServer() {
+    fetch('UserItemBorrow.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'cart_action=get'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            cartItems = data.cart || [];
+            updateCartDisplay();
+        }
+    })
+    .catch(error => console.error('Error loading cart:', error));
+}
+
+// Modify the clear cart function
+function handleClearCart() {
+    if (cartItems.length === 0) {
+        showModal('Your cart is already empty.', true);
+        return;
     }
+    
+    showConfirmation('Are you sure you want to clear your entire cart?', function() {
+        fetch('UserItemBorrow.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'cart_action=clear'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                cartItems = [];
+                updateCartDisplay();
+                showModal('Cart cleared successfully.', false);
+            } else {
+                showModal('Failed to clear cart.', true);
+            }
+        })
+        .catch(error => {
+            showModal('Error clearing cart: ' + error.message, true);
+        });
+    });
+}
+
+// Modify the remove item function
+function handleRemoveItem(index) {
+    const item = cartItems[index];
+    showConfirmation('Are you sure you want to remove this item from your cart?', function() {
+        fetch('UserItemBorrow.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                cart_action: 'remove',
+                item_id: item.item_id,
+                date_needed: item.date_needed,
+                return_date: item.return_date
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                cartItems = data.cart || [];
+                updateCartDisplay();
+                showModal('Item removed from cart.', false);
+            } else {
+                showModal('Failed to remove item.', true);
+            }
+        })
+        .catch(error => {
+            showModal('Error removing item: ' + error.message, true);
+        });
+    });
+}
+
+// Call this on DOMContentLoaded
+loadCartFromServer();
 
     function submitRequest(fromCart) {
         const formData = new FormData(requestForm);
@@ -448,65 +556,64 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    function handleSubmitAll() {
-        if (cartItems.length === 0) {
-            showModal('Your cart is empty. Please add items before submitting.', true);
-            return;
-        }
-        
-        submitAllBtn.disabled = true;
-        submitAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-        
-        submitCartItems(0);
+  function handleSubmitAll() {
+    if (cartItems.length === 0) {
+        showModal('Your cart is empty. Please add items before submitting.', true);
+        return;
     }
+    
+    submitAllBtn.disabled = true;
+    submitAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    
+    submitCartItems(0);
+}
 
-    function submitCartItems(index) {
-        if (index >= cartItems.length) {
-            showModal('All items submitted for approval! They will remain in your cart until approved by admin.', false);
-            submitAllBtn.disabled = false;
-            submitAllBtn.textContent = 'Submit All Requests';
-            
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-            return;
-        }
+function submitCartItems(index) {
+    if (index >= cartItems.length) {
+        showModal('All items submitted for approval! They will remain in your cart until approved by admin.', false);
+        submitAllBtn.disabled = false;
+        submitAllBtn.textContent = 'Submit All Requests';
         
-        const item = cartItems[index];
-        const formData = new FormData();
-        
-        for (const key in item) {
-            if (item.hasOwnProperty(key)) {
-                formData.append(key, item[key]);
-            }
-        }
-        formData.append('from_cart', 'true');
-        
-        fetch('UserItemBorrow.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                showModal(`Error submitting item "${item.item_name}": ${data.error}`);
-                submitAllBtn.disabled = false;
-                submitAllBtn.textContent = 'Submit All Requests';
-            } else {
-                submitCartItems(index + 1);
-            }
-        })
-        .catch(error => {
-            showModal(`Error submitting item "${item.item_name}": ${error.message}`);
-            submitAllBtn.disabled = false;
-            submitAllBtn.textContent = 'Submit All Requests';
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
         });
+        return;
     }
-
+    
+    const item = cartItems[index];
+    const formData = new FormData();
+    
+    for (const key in item) {
+        if (item.hasOwnProperty(key)) {
+            formData.append(key, item[key]);
+        }
+    }
+    formData.append('from_cart', 'true');
+    
+    fetch('UserItemBorrow.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            showModal(`Error submitting item "${item.item_name}": ${data.error}`);
+            submitAllBtn.disabled = false;
+            submitAllBtn.textContent = 'Submit All Requests';
+        } else {
+            submitCartItems(index + 1);
+        }
+    })
+    .catch(error => {
+        showModal(`Error submitting item "${item.item_name}": ${error.message}`);
+        submitAllBtn.disabled = false;
+        submitAllBtn.textContent = 'Submit All Requests';
+    });
+}
     //////////////////////// UTILITY FUNCTIONS ////////////////////////
     function populateDropdown(items) {
         itemDropdown.innerHTML = '<option value="" disabled selected>Select an Item</option>';

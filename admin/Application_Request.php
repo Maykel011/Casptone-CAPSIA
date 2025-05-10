@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         exit();
     }
     // Release action - for changing status from For Releasing to Released
-  // In the 'release' action section, remove the item_returns insertion
+  // In the 'release' action section
 elseif ($_POST['action'] === 'release') {
     $requestId = intval($_POST['request_id']);
 
@@ -96,11 +96,45 @@ elseif ($_POST['action'] === 'release') {
     $conn->begin_transaction();
 
     try {
+        // First, get the user_id and item_id from the request
+        $getRequestStmt = $conn->prepare("SELECT user_id, item_id FROM borrow_requests WHERE borrow_id = ?");
+        $getRequestStmt->bind_param("i", $requestId);
+        $getRequestStmt->execute();
+        $requestData = $getRequestStmt->get_result()->fetch_assoc();
+        $getRequestStmt->close();
+
         // Update the borrow request status to Released
         $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Released', processed_at = NOW() WHERE borrow_id = ?");
         $stmt->bind_param("i", $requestId);
         $stmt->execute();
         $stmt->close();
+
+        // Remove from user's cart if exists (using session)
+        if ($requestData) {
+            $userId = $requestData['user_id'];
+            $itemId = $requestData['item_id'];
+            
+            // Get the user's cart from session
+            $cartCheckStmt = $conn->prepare("SELECT cart_data FROM user_carts WHERE user_id = ?");
+            $cartCheckStmt->bind_param("i", $userId);
+            $cartCheckStmt->execute();
+            $cartResult = $cartCheckStmt->get_result();
+            
+            if ($cartResult->num_rows > 0) {
+                $cartData = json_decode($cartResult->fetch_assoc()['cart_data'], true);
+                $updatedCart = array_filter($cartData, function($item) use ($itemId) {
+                    return $item['item_id'] != $itemId;
+                });
+                
+                // Update the cart in database
+                $updateCartStmt = $conn->prepare("UPDATE user_carts SET cart_data = ? WHERE user_id = ?");
+                $updatedCartJson = json_encode(array_values($updatedCart));
+                $updateCartStmt->bind_param("si", $updatedCartJson, $userId);
+                $updateCartStmt->execute();
+                $updateCartStmt->close();
+            }
+            $cartCheckStmt->close();
+        }
 
         // Commit transaction
         $conn->commit();

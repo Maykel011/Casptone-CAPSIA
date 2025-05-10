@@ -2,6 +2,140 @@
 include '../config/db_connection.php';
 session_start();
 
+if (isset($_SESSION['user_id'])) {
+    $userId = $_SESSION['user_id'];
+    
+    // Handle cart actions
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_action'])) {
+        header('Content-Type: application/json');
+        
+        switch ($_POST['cart_action']) {
+            case 'add':
+                $itemData = [
+                    'item_id' => intval($_POST['item_id']),
+                    'item_name' => $_POST['item_name'],
+                    'item_category' => $_POST['item_category'],
+                    'quantity' => intval($_POST['quantity']),
+                    'date_needed' => $_POST['date_needed'],
+                    'return_date' => $_POST['return_date'],
+                    'purpose' => $_POST['purpose'],
+                    'notes' => $_POST['notes'] ?? ''
+                ];
+                
+                // Get current cart
+                $cartStmt = $conn->prepare("SELECT cart_data FROM user_carts WHERE user_id = ?");
+                $cartStmt->bind_param("i", $userId);
+                $cartStmt->execute();
+                $cartResult = $cartStmt->get_result();
+                $cartData = $cartResult->num_rows > 0 ? json_decode($cartResult->fetch_assoc()['cart_data'], true) : [];
+                $cartStmt->close();
+
+                // Add new item or update quantity if exists
+                $existingIndex = -1;
+                foreach ($cartData as $index => $item) {
+                    if ($item['item_id'] == $itemData['item_id'] && 
+                        $item['date_needed'] == $itemData['date_needed'] && 
+                        $item['return_date'] == $itemData['return_date']) {
+                        $existingIndex = $index;
+                        break;
+                    }
+                }
+
+                if ($existingIndex >= 0) {
+                    $cartData[$existingIndex]['quantity'] += $itemData['quantity'];
+                } else {
+                    $cartData[] = $itemData;
+                }
+
+                // Save back to database
+                $updateStmt = $conn->prepare("UPDATE user_carts SET cart_data = ? WHERE user_id = ?");
+                $cartJson = json_encode($cartData);
+                $updateStmt->bind_param("si", $cartJson, $userId);
+                $success = $updateStmt->execute();
+                $updateStmt->close();
+
+                echo json_encode(['success' => $success, 'cart' => $cartData]);
+                exit();
+
+            case 'clear':
+                $clearStmt = $conn->prepare("UPDATE user_carts SET cart_data = '[]' WHERE user_id = ?");
+                $clearStmt->bind_param("i", $userId);
+                $success = $clearStmt->execute();
+                $clearStmt->close();
+                echo json_encode(['success' => $success]);
+                exit();
+
+            case 'remove':
+                $itemId = intval($_POST['item_id']);
+                $dateNeeded = $_POST['date_needed'];
+                $returnDate = $_POST['return_date'];
+                
+                $cartStmt = $conn->prepare("SELECT cart_data FROM user_carts WHERE user_id = ?");
+                $cartStmt->bind_param("i", $userId);
+                $cartStmt->execute();
+                $cartResult = $cartStmt->get_result();
+                $cartData = $cartResult->num_rows > 0 ? json_decode($cartResult->fetch_assoc()['cart_data'], true) : [];
+                $cartStmt->close();
+
+                $updatedCart = array_filter($cartData, function($item) use ($itemId, $dateNeeded, $returnDate) {
+                    return !($item['item_id'] == $itemId && 
+                           $item['date_needed'] == $dateNeeded && 
+                           $item['return_date'] == $returnDate);
+                });
+
+                $updateStmt = $conn->prepare("UPDATE user_carts SET cart_data = ? WHERE user_id = ?");
+                $updatedCartJson = json_encode(array_values($updatedCart));
+                $updateStmt->bind_param("si", $updatedCartJson, $userId);
+                $success = $updateStmt->execute();
+                $updateStmt->close();
+
+                echo json_encode(['success' => $success, 'cart' => $updatedCart]);
+                exit();
+
+            case 'get':
+                $cartStmt = $conn->prepare("SELECT cart_data FROM user_carts WHERE user_id = ?");
+                $cartStmt->bind_param("i", $userId);
+                $cartStmt->execute();
+                $cartResult = $cartStmt->get_result();
+
+                if ($cartResult->num_rows > 0) {
+                    $cartData = json_decode($cartResult->fetch_assoc()['cart_data'], true) ?: [];
+                } else {
+                    $cartData = [];
+                    // Create a cart record for the user if it doesn't exist
+                    $insertStmt = $conn->prepare("INSERT INTO user_carts (user_id, cart_data) VALUES (?, '[]')");
+                    $insertStmt->bind_param("i", $userId);
+                    $insertStmt->execute();
+                    $insertStmt->close();
+                }
+                $cartStmt->close();
+
+                echo json_encode(['success' => true, 'cart' => $cartData]);
+                exit();
+        }
+    }
+    
+    // Initialize cart from database if it exists
+    $cartStmt = $conn->prepare("SELECT cart_data FROM user_carts WHERE user_id = ?");
+    $cartStmt->bind_param("i", $userId);
+    $cartStmt->execute();
+    $cartResult = $cartStmt->get_result();
+    
+    if ($cartResult->num_rows > 0) {
+        $cartItems = json_decode($cartResult->fetch_assoc()['cart_data'], true) ?: [];
+    } else {
+        $cartItems = [];
+        // Create a cart record for the user if it doesn't exist
+        $insertStmt = $conn->prepare("INSERT INTO user_carts (user_id, cart_data) VALUES (?, '[]')");
+        $insertStmt->bind_param("i", $userId);
+        $insertStmt->execute();
+        $insertStmt->close();
+    }
+    $cartStmt->close();
+} else {
+    $cartItems = [];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $itemCategory = htmlspecialchars($_POST['item_category'] ?? '');
     $itemId = intval($_POST['item_id'] ?? 0);
