@@ -7,7 +7,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
     exit();
 }
 
-// Fetch currently logged-in admin details hot
+// Fetch currently logged-in admin details
 $currentAdminId = $_SESSION['user_id'];
 $stmt = $conn->prepare("SELECT username, email, role FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $currentAdminId);
@@ -39,8 +39,6 @@ try {
     die("Error: Unable to fetch item count. Please ensure the 'items' table exists in the database.");
 }
 
-
-
 // Initialize variables with default values
 $approvedRequestsCount = 0;
 $pendingRequestsCount = 0;
@@ -51,7 +49,7 @@ if ($approvedQuery === false) {
     die("Error fetching approved requests: " . $conn->error);
 } else {
     $approvedRequestsCount = $approvedQuery->fetch_row()[0];
-    $approvedQuery->free(); // Free the result set
+    $approvedQuery->free();
 }
 
 // 2. Query for pending requests count
@@ -60,7 +58,7 @@ if ($pendingQuery === false) {
     die("Error fetching pending requests: " . $conn->error);
 } else {
     $pendingRequestsCount = $pendingQuery->fetch_row()[0];
-    $pendingQuery->free(); // Free the result set
+    $pendingQuery->free();
 }
 
 // Handle approve/reject actions
@@ -92,14 +90,15 @@ $chartData = [
 // Fetch recent items based on the most recent created_at timestamp
 $recentItemsQuery = "SELECT item_name, description, model_no, item_category, status, quantity 
                      FROM items 
-                     WHERE created_at = (SELECT MAX(created_at) FROM items)";
+                     ORDER BY created_at DESC LIMIT 5";
 $recentItemsResult = $conn->query($recentItemsQuery);
 if ($recentItemsResult === false) {
     die("Error fetching recent items: " . $conn->error);
 }
 
-// Fetch pending requests
-$pendingRequestsQuery = "SELECT u.username, r.item_name, r.item_category, r.request_date, r.quantity, r.request_id 
+// Fetch pending requests with additional details
+$pendingRequestsQuery = "SELECT u.username, r.item_name, r.item_category, r.request_date, 
+                         r.quantity, r.request_id, r.notes 
                          FROM new_item_requests r 
                          JOIN users u ON r.user_id = u.user_id 
                          WHERE r.status = 'pending' 
@@ -116,8 +115,9 @@ if ($pendingRequestsResult === false) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Dashboard</title>
-    <link rel="stylesheet" href="../css/DashboardAdmin.css">
+    <link rel="stylesheet" href="../css/DashboardAdmins.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <header class="header">
@@ -141,213 +141,339 @@ if ($pendingRequestsResult === false) {
     </header>
 
     <aside class="sidebar">
-    <ul>
-        <li><a href="adminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
-
-        <li><a href="ItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">Item Records</i></a></li>
-
-        <!-- Request Record with Dropdown -->
-        <li class="dropdown">
-            <a href="#" class="dropdown-btn">
-                <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
-                <span class="text">Request Record</span>
-               <svg class="arrow-icon" viewBox="0 0 448 512" width="1em" height="1em" fill="currentColor">
-  <path d="M207.029 381.476L12.686 187.132c-9.373-9.373-9.373-24.569 0-33.941l22.667-22.667c9.357-9.357 24.522-9.375 33.901-.04L224 284.505l154.745-154.021c9.379-9.335 24.544-9.317 33.901.04l22.667 22.667c9.373 9.373 9.373 24.569 0 33.941L240.971 381.476c-9.373 9.372-24.569 9.372-33.942 0z"/>
-</svg>
-            </a>
-            <ul class="dropdown-content">
+        <ul>
+            <li><a href="adminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
+            <li><a href="ItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">Item Records</a></li>
+            <li class="dropdown">
+                <a href="#" class="dropdown-btn">
+                    <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
+                    <span class="text">Request Record</span>
+                    <svg class="arrow-icon" viewBox="0 0 448 512" width="1em" height="1em" fill="currentColor">
+                        <path d="M207.029 381.476L12.686 187.132c-9.373-9.373-9.373-24.569 0-33.941l22.667-22.667c9.357-9.357 24.522-9.375 33.901-.04L224 284.505l154.745-154.021c9.379-9.335 24.544-9.317 33.901.04l22.667 22.667c9.373 9.373 9.373 24.569 0 33.941L240.971 381.476c-9.373 9.372-24.569 9.372-33.942 0z"/>
+                    </svg>
+                </a>
+                <ul class="dropdown-content">
                     <li><a href="ItemRequest.php">Item Request by User</a></li>
                     <li><a href="Application_Request.php"> Application Request</a></li>
                     <li><a href="ItemReturned.php">Item Returned</a></li>
                 </ul>
-        </li>
+            </li>
+            <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>
+            <li><a href="UserManagement.php"><img src="../assets/img/user-management.png" alt="User Management Icon" class="sidebar-icon"> User Management</a></li>
+        </ul>
+    </aside>
 
-        <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>
-        <li><a href="UserManagement.php"><img src="../assets/img/user-management.png" alt="User Management Icon" class="sidebar-icon"> User Management</a></li>
-    </ul>
-</aside>
-
-<div class="main-container">
-    <h4 class="overview-title">OVERVIEW</h4>
-    <div class="dashboard-overview">
-        <div class="card gradient-yellow">
-            <i class="fa-solid fa-user"></i>
+    <div class="main-container">
+        <h4 class="overview-title">OVERVIEW</h4>
+        <div class="dashboard-overview">
+            <div class="card gradient-yellow">
+                <i class="fas fa-user"></i>
                 <h2><b>Users</b></h2>
                 <p><?php echo htmlspecialchars($userCount); ?></p>
                 <canvas id="chart1" class="chart-container"></canvas>
             </div>
-        <div class="card gradient-orange">
-            <i class="fa-solid fa-check-circle"></i>
-            <h2><b>Approved Requests</b></h2>
-            <p><?php echo htmlspecialchars($approvedRequestsCount); ?></p>
-            <canvas id="chart2" class="chart-container"></canvas>
+            <div class="card gradient-orange">
+                <i class="fas fa-check-circle"></i>
+                <h2><b>Approved Requests</b></h2>
+                <p><?php echo htmlspecialchars($approvedRequestsCount); ?></p>
+                <canvas id="chart2" class="chart-container"></canvas>
+            </div>
+            <div class="card gradient-green">
+                <i class="fas fa-clock"></i>
+                <h2><b>Pending Requests</b></h2>
+                <p><?php echo htmlspecialchars($pendingRequestsCount); ?></p>
+                <canvas id="chart3" class="chart-container"></canvas>
+            </div>
+            <div class="card gradient-purple">
+                <i class="fas fa-list"></i>
+                <h2><b>Total Items</b></h2>
+                <p><?php echo htmlspecialchars($itemCount); ?></p>
+                <canvas id="chart4" class="chart-container"></canvas>
+            </div>
         </div>
-        <div class="card gradient-green">
-            <i class="fa-solid fa-clock"></i>
-            <h2><b>Pending Requests</b></h2>
-            <p><?php echo htmlspecialchars($pendingRequestsCount); ?></p>
-            <canvas id="chart3" class="chart-container"></canvas>
-        </div>
-        <div class="card gradient-purple">
-            <i class="fa-solid fa-list"></i>
-            <h2><b>Total Items</b></h2>
-            <p><?php echo htmlspecialchars($itemCount); ?></p>
-            <canvas id="chart4" class="chart-container"></canvas>
-        </div>
-    </div>
-    
-
         
         <div class="tables-section">
             <div class="table-container">
                 <h2>Recent Items</h2>
                 <table>
-                    <tr>
-                        <th>Item Name</th>
-                        <th>Description</th>
-                        <th>Model No.</th>
-                        <th>Category</th>  
-                        <th>Status</th>
-                        <th>Quantity</th>
-                        <th>Actions</th>
-                    </tr>
-                    <?php while ($item = $recentItemsResult->fetch_assoc()): ?>
-    <tr>
-        <td><?php echo htmlspecialchars($item['item_name']); ?></td>
-        <td><?php echo htmlspecialchars($item['description']); ?></td>
-        <td><?php echo htmlspecialchars($item['model_no']); ?></td>
-        <td><?php echo htmlspecialchars($item['item_category']); ?></td>  <!-- Actual column name -->
-        <td><?php echo htmlspecialchars($item['status']); ?></td>         <!-- Actual column name -->
-        <td><?php echo htmlspecialchars($item['quantity']); ?></td>
-        <td>
-            <button class="btn view" onclick="openViewModal(<?php echo htmlspecialchars(json_encode($item)); ?>">View</button>
-        </td>
-    </tr>
-<?php endwhile; ?>
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Description</th>
+                            <th>Model No.</th>
+                            <th>Category</th>  
+                            <th>Status</th>
+                            <th>Quantity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while ($item = $recentItemsResult->fetch_assoc()): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($item['item_name']); ?></td>
+                                <td><?php echo htmlspecialchars($item['description']); ?></td>
+                                <td><?php echo htmlspecialchars($item['model_no']); ?></td>
+                                <td><?php echo htmlspecialchars($item['item_category']); ?></td>
+                                <td><?php echo htmlspecialchars($item['status']); ?></td>
+                                <td><?php echo htmlspecialchars($item['quantity']); ?></td>
+                                <td>
+                                    <button class="btn view" onclick="openViewModal(<?php echo htmlspecialchars(json_encode($item), ENT_QUOTES, 'UTF-8'); ?>)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
                 </table>
             </div>
             
             <div class="table-container">
                 <h2>Pending Requests</h2>
                 <table>
-                    <tr>
-                        <th>Username</th>
-                        <th>Requested Item Name</th>
-                        <th>Item Category</th>
-                        <th>Request Date</th>
-                        <th>Quantity</th>
-                        <th>Actions</th>
-                    </tr>
-                    <?php while ($request = $pendingRequestsResult->fetch_assoc()): ?>
+                    <thead>
                         <tr>
-                            <td><?php echo htmlspecialchars($request['username']); ?></td>
-                            <td><?php echo htmlspecialchars($request['item_name']); ?></td>
-                            <td><?php echo htmlspecialchars($request['item_category']); ?></td>
-                            <td><?php echo htmlspecialchars($request['request_date']); ?></td>
-                            <td><?php echo htmlspecialchars($request['quantity']); ?></td>
-                            <td>
-                                <button class="btn approve" onclick="openApproveModal(<?php echo $request['request_id']; ?>)">Approve</button>
-                                <button class="btn reject" onclick="openRejectModal(<?php echo $request['request_id']; ?>)">Reject</button>
-                            </td>
+                            <th>Name</th>
+                            <th>Requested Item</th>
+                            <th>Category</th>
+                            <th>Request Date</th>
+                            <th>Quantity</th>
+                            <th>Actions</th>
                         </tr>
-                    <?php endwhile; ?>
+                    </thead>
+                    <tbody>
+                        <?php while ($request = $pendingRequestsResult->fetch_assoc()): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($request['username']); ?></td>
+                                <td><?php echo htmlspecialchars($request['item_name']); ?></td>
+                                <td><?php echo htmlspecialchars($request['item_category']); ?></td>
+                                <td><?php echo htmlspecialchars($request['request_date']); ?></td>
+                                <td><?php echo htmlspecialchars($request['quantity']); ?></td>
+                                <td class="action-buttons">
+                                    <button class="btn view" onclick="openRequestModal(<?php echo htmlspecialchars(json_encode($request), ENT_QUOTES, 'UTF-8'); ?>)">
+                                        <i class="fas fa-info-circle"></i> Details
+                                    </button>
+                                    <button class="btn approve" onclick="openApproveModal(<?php echo $request['request_id']; ?>)">
+                                        <i class="fas fa-check"></i> Approve
+                                    </button>
+                                    <button class="btn reject" onclick="openRejectModal(<?php echo $request['request_id']; ?>)">
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
                 </table>
             </div>
         </div>
-        </div>
-        
-    <div id="viewModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal('viewModal')">&times;</span>
-        <h2>Item Details</h2>
-        <p><strong>Item Name:</strong> <span id="modalItemName"></span></p>
-        <p><strong>Description:</strong> <span id="modalDescription"></span></p>
-        <p><strong>Model No.:</strong> <span id="modalModel"></span></p>
-        <p><strong>Category:</strong> <span id="modalCategory"></span></p>  
-        <p><strong>Status:</strong> <span id="modalStatus"></span></p>     
-        <p><strong>Quantity:</strong> <span id="modalQuantity"></span></p>
     </div>
-</div>
     
+    <!-- Modern Item View Modal -->
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Item Details</h2>
+                <button class="modal-close" onclick="closeModal('viewModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="viewModalBody">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modern Request View Modal -->
+    <div id="requestModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Request Details</h2>
+                <button class="modal-close" onclick="closeModal('requestModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="requestModalBody">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Approve Modal -->
     <div id="approveModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal('approveModal')">&times;</span>
-            <h2>Approve Request</h2>
-            <p>Are you sure you want to approve this request?</p>
-            <form method="POST" action="">
-                <input type="hidden" name="request_id" id="approveRequestId">
-                <input type="hidden" name="action" value="approve">
-                <center><button type="submit" class="btn approve">Confirm</button></center>
-            </form>
+            <div class="modal-header">
+                <h2 class="modal-title">Approve Request</h2>
+                <button class="modal-close" onclick="closeModal('approveModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to approve this request?</p>
+            </div>
+            <div class="modal-footer">
+                <form method="POST" action="">
+                    <input type="hidden" name="request_id" id="approveRequestId">
+                    <input type="hidden" name="action" value="approve">
+                    <button type="button" class="btn cancel" onclick="closeModal('approveModal')">Cancel</button>
+                    <button type="submit" class="btn approve"><i class="fas fa-check"></i> Confirm Approval</button>
+                </form>
+            </div>
         </div>
     </div>
     
+    <!-- Reject Modal -->
     <div id="rejectModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal('rejectModal')">&times;</span>
-            <h2>Reject Request</h2>
-            <p>Are you sure you want to reject this request?</p>
-            <form method="POST" action="">
-                <input type="hidden" name="request_id" id="rejectRequestId">
-                <input type="hidden" name="action" value="reject">
-                <center><button type="submit" class="btn reject">Confirm</button></center>
-            </form>
+            <div class="modal-header">
+                <h2 class="modal-title">Reject Request</h2>
+                <button class="modal-close" onclick="closeModal('rejectModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reject this request?</p>
+            </div>
+            <div class="modal-footer">
+                <form method="POST" action="">
+                    <input type="hidden" name="request_id" id="rejectRequestId">
+                    <input type="hidden" name="action" value="reject">
+                    <button type="button" class="btn cancel" onclick="closeModal('rejectModal')">Cancel</button>
+                    <button type="submit" class="btn reject"><i class="fas fa-times"></i> Confirm Rejection</button>
+                </form>
+            </div>
         </div>
     </div>
 
-    <script src="../js/DashboardAdmin.js"></script>
-
-<script> document.addEventListener("DOMContentLoaded", function () {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            const chartData = <?php echo json_encode($chartData); ?>;
-
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Users', 'Items', 'Approved Requests', 'Pending Requests'],
-                    datasets: [{
-                        label: 'Counts',
-                        data: [chartData.users, chartData.items, chartData.approvedRequests, chartData.pendingRequests],
-                        backgroundColor: [
-                            'rgba(255, 206, 86, 0.6)', // Yellow
-                            'rgba(153, 102, 255, 0.6)', // Purple
-                            'rgba(255, 159, 64, 0.6)', // Orange
-                            'rgba(75, 192, 192, 0.6)'  // Green
-                        ],
-                        borderColor: [
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(153, 102, 255, 1)',
-                            'rgba(255, 159, 64, 1)',
-                            'rgba(75, 192, 192, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
+    <script src="../js/AdminDashboard.js"></script>
+    <script>
+        // Chart initialization
+        document.addEventListener("DOMContentLoaded", function () {
+            // Mini charts
+            const chartConfigs = [
+                { id: "chart1", type: "doughnut", data: [<?php echo $userCount; ?>, <?php echo max(10, $userCount * 1.5); ?>], colors: ['#fff', 'rgba(255,255,255,0.2)'] },
+                { id: "chart2", type: "doughnut", data: [<?php echo $approvedRequestsCount; ?>, <?php echo max(5, $approvedRequestsCount * 1.5); ?>], colors: ['#fff', 'rgba(255,255,255,0.2)'] },
+                { id: "chart3", type: "doughnut", data: [<?php echo $pendingRequestsCount; ?>, <?php echo max(5, $pendingRequestsCount * 1.5); ?>], colors: ['#fff', 'rgba(255,255,255,0.2)'] },
+                { id: "chart4", type: "doughnut", data: [<?php echo $itemCount; ?>, <?php echo max(20, $itemCount * 1.5); ?>], colors: ['#fff', 'rgba(255,255,255,0.2)'] }
+            ];
+            
+            chartConfigs.forEach(config => {
+                const ctx = document.getElementById(config.id);
+                if (ctx) {
+                    new Chart(ctx.getContext('2d'), {
+                        type: config.type,
+                        data: {
+                            datasets: [{
+                                data: config.data,
+                                backgroundColor: config.colors,
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            cutout: '70%',
+                            plugins: { legend: { display: false } },
+                            animation: { animateScale: true }
                         }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
+                    });
                 }
             });
+
+            // Main chart data
+            const chartData = <?php echo json_encode($chartData); ?>;
         });
 
+        // Modal functions
+        function openModal(modalId, data = null) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+
+            if (data) {
+                populateModalContent(modalId, data);
+            }
+
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        function populateModalContent(modalId, data) {
+            const modalBody = document.querySelector(`#${modalId} .modal-body`);
+            if (!modalBody) return;
+
+            if (modalId === 'viewModal') {
+                modalBody.innerHTML = `
+                    <div class="detail-row">
+                        <div class="detail-label">Item Name:</div>
+                        <div class="detail-value">${escapeHtml(data.item_name)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Description:</div>
+                        <div class="detail-value">${escapeHtml(data.description)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Model No.:</div>
+                        <div class="detail-value">${escapeHtml(data.model_no)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Category:</div>
+                        <div class="detail-value">${escapeHtml(data.item_category)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Status:</div>
+                        <div class="detail-value"><span class="status-badge ${data.status.toLowerCase()}">${escapeHtml(data.status)}</span></div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Quantity:</div>
+                        <div class="detail-value">${escapeHtml(data.quantity)}</div>
+                    </div>
+                `;
+            } else if (modalId === 'requestModal') {
+                modalBody.innerHTML = `
+                    <div class="detail-row">
+                        <div class="detail-label">Requested By:</div>
+                        <div class="detail-value">${escapeHtml(data.username)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Item Name:</div>
+                        <div class="detail-value">${escapeHtml(data.item_name)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Category:</div>
+                        <div class="detail-value">${escapeHtml(data.item_category)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Request Date:</div>
+                        <div class="detail-value">${escapeHtml(data.request_date)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Quantity:</div>
+                        <div class="detail-value">${escapeHtml(data.quantity)}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Additional Notes:</div>
+                        <div class="detail-value">${escapeHtml(data.notes || 'N/A')}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return 'N/A';
+            return unsafe.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Specific modal openers
         function openViewModal(item) {
-    document.getElementById('modalItemName').textContent = item.item_name;
-    document.getElementById('modalDescription').textContent = item.description;
-    document.getElementById('modalModel').textContent = item.model_no;
-    document.getElementById('modalCategory').textContent = item.item_category;  // Changed
-    document.getElementById('modalStatus').textContent = item.status;           // Changed
-    document.getElementById('modalQuantity').textContent = item.quantity;
-    openModal('viewModal');
-}
+            openModal('viewModal', item);
+        }
+
+        function openRequestModal(request) {
+            openModal('requestModal', request);
+        }
+
         function openApproveModal(requestId) {
             document.getElementById('approveRequestId').value = requestId;
             openModal('approveModal');
@@ -356,6 +482,14 @@ if ($pendingRequestsResult === false) {
         function openRejectModal(requestId) {
             document.getElementById('rejectRequestId').value = requestId;
             openModal('rejectModal');
-        }</script>
+        }
+
+        // Close modal when clicking outside content
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                closeModal(e.target.id);
+            }
+        });
+    </script>
 </body>
 </html>
