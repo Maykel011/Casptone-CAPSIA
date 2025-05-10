@@ -1,8 +1,8 @@
 <?php
 $servername = "localhost";
-$username = "root"; // Typically your cPanel username + _ + db username
-$password = ""; // The password you set for this database user
-$dbname = "u450075158_ucgs";
+$username = "u871640738_ucgs"; // Typically your cPanel username + _ + db username
+$password = "@Capstoneucgs1"; // The password you set for this database user
+$dbname = "u871640738_ucgs";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 
