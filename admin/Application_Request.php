@@ -510,6 +510,6 @@ $result = $conn->query($query);
     </div>
 </div>
 
-    <script src="../js/Application_Reqs.js"></script>
+    <script src="../js/Applications_Request.js"></script>
 </body>
 </html>
