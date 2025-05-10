@@ -723,3 +723,68 @@ table tr:hover {
         display: none;
     }
 }
+
+/* Sidebar Toggle Button Styles */
+.sidebar-toggle {
+    position: fixed;
+    left: 10px;
+    top: calc(var(--header-height) + 10px);
+    z-index: 1001;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.sidebar-toggle:hover {
+    background: var(--hover-color);
+    transform: scale(1.1);
+}
+
+.sidebar.active + .sidebar-toggle {
+    left: 260px; /* Adjust based on your sidebar width */
+}
+
+/* Adjust sidebar positioning */
+.sidebar {
+    left: -100%;
+    z-index: 1000;
+}
+
+.sidebar.active {
+    left: 0;
+}
+
+/* Main container adjustment */
+.main-container {
+    margin-left: 0;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .sidebar {
+        left: 0;
+    }
+    
+    .sidebar.active + .sidebar-toggle {
+        left: 260px;
+    }
+    
+    .main-container {
+        margin-left: var(--sidebar-width);
+        width: calc(100% - var(--sidebar-width));
+    }
+    
+    /* Hide toggle button when sidebar is always visible */
+    .sidebar-toggle {
+        display: none;
+    }
+}

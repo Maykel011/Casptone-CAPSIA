@@ -140,6 +140,11 @@ if ($pendingRequestsResult === false) {
         </div>
     </header>
 
+    <!-- Add toggle button here -->
+<button class="sidebar-toggle" id="sidebarToggle">
+    <i class="fas fa-bars"></i>
+</button>
+
     <aside class="sidebar">
         <ul>
             <li><a href="adminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
@@ -490,6 +495,66 @@ if ($pendingRequestsResult === false) {
                 closeModal(e.target.id);
             }
         });
+
+            // Sidebar toggle functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.querySelector('.sidebar');
+        const mainContainer = document.querySelector('.main-container');
+
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+            
+            // Store sidebar state in localStorage
+            const isActive = sidebar.classList.contains('active');
+            localStorage.setItem('sidebarActive', isActive);
+            
+            // Adjust main container margin if needed
+            if (window.innerWidth >= 768) {
+                if (isActive) {
+                    mainContainer.style.marginLeft = '0';
+                    mainContainer.style.width = '100%';
+                } else {
+                    mainContainer.style.marginLeft = 'var(--sidebar-width)';
+                    mainContainer.style.width = 'calc(100% - var(--sidebar-width))';
+                }
+            }
+        });
+
+        // Check localStorage for sidebar state on page load
+        const sidebarActive = localStorage.getItem('sidebarActive') === 'true';
+        if (sidebarActive) {
+            sidebar.classList.add('active');
+            if (window.innerWidth >= 768) {
+                mainContainer.style.marginLeft = '0';
+                mainContainer.style.width = '100%';
+            }
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth < 768 && 
+                !e.target.closest('.sidebar') && 
+                !e.target.closest('#sidebarToggle') &&
+                sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                localStorage.setItem('sidebarActive', false);
+            }
+        });
+
+        // Adjust toggle button position on resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768) {
+                sidebarToggle.style.display = 'none';
+                if (!sidebar.classList.contains('active')) {
+                    mainContainer.style.marginLeft = 'var(--sidebar-width)';
+                    mainContainer.style.width = 'calc(100% - var(--sidebar-width))';
+                }
+            } else {
+                sidebarToggle.style.display = 'flex';
+            }
+        });
+    });
     </script>
 </body>
 </html>
