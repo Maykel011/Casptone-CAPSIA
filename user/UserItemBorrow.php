@@ -494,6 +494,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_id'])) {
 
 
 
-    <script src="../js/UsersItemborrow.js"></script>
+    <script src="../js/UsersItemborrowed.js"></script>
 </body>
 </html>
